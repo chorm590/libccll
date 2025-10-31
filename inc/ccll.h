@@ -1,6 +1,8 @@
 #ifndef __CCLL_H__
 #define __CCLL_H__
 
-int cl_init();
+typedef int (*printf_fun)(const char *format, ...);
+
+Ret cl_init(print_fun pfun);
 
 #endif
