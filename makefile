@@ -11,16 +11,18 @@ CC := $(CROSS_COMPILE)gcc
 LD := $(CROSS_COMPILE)ld
 AR := $(CROSS_COMPILE)ar
 
-SRCS := main.c \
-		log/log.c
+SRCS := comm/alloc.c \
+		log/log.c \
+		main.c
 
 OBJS := $(SRCS:.c=.o)
 CFLAGS_C := -fPIC -Wall
 CFLAGS_L := -shared -Wall
 INCS := -Icomm/inc \
-		-Isys/inc \
 		-Icfg/inc \
 		-Ilog/inc \
+		-Iqueue/inc \
+		-Isys/inc \
 		-Iinc
 
 OBJ_DIR := out/obj
@@ -29,6 +31,7 @@ OBJS_C := $(addprefix $(OBJ_DIR)/, $(OBJS))
 all: clean env ext_lib $(OBJS)
 	@echo "making $(NAME)..."
 	$(CC) $(CFLAGS_L) -o out/lib/$(OUTPUT_NAME) $(OBJS_C)
+	@echo "installing the includes..."
 	@for hdr in $$(find . -type f ! -name "_*" | grep "\.h$$"); \
 		do \
 			cp $$hdr out/include/cl_$$(basename $$hdr); \
