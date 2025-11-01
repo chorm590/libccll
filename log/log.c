@@ -11,99 +11,110 @@
 #include <pthread.h>
 
 #include "def.h"
+#include "ccll.h"
+#include "_log.h"
+#include "log.h"
 
+extern print_fun s_prtfun;
+
+static char *log_hdr;
+static char *log_buf;
 static pthread_mutex_t lock;
-static char initialized = false;
+static char g_init = false;
 
-static inline void log_print(char* msg)
+static int def_print_fun(int type, const char *tag, const char *text)
 {
-	if(print_timestamp)
-	{
-		time_t ti = {0};
-		time(&ti);
-		struct tm* t = localtime(&ti);
-		struct timeval tv = {0};
-		gettimeofday(&tv, NULL);
-		printf("[%02d%02d%02d%02d%02d.%06ld] %s\n", t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec, tv.tv_usec, msg);
-		if(rsyslogd.pid > 0 && rsyslogd.sys_log == uttrue)
-		{
-			int priority = 0;
-			switch(*msg)
-			{
-				case 'D':
-					priority = LOG_LOCAL0 | LOG_DEBUG;
-					break;
-				case 'I':
-					priority = LOG_LOCAL0 | LOG_INFO;
-					break;
-				case 'E':
-					priority = LOG_LOCAL0 | LOG_ERR;
-					break;
-				default:
-					goto LOG_PRINT_END;
-			}
-			syslog(priority, "[%02d%02d%02d%02d%02d.%06ld] %s", t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec, tv.tv_usec, msg);
-		}
-	}
-	else
-	{
-		printf("%s\n", msg);
-		if(rsyslogd.pid > 0 && rsyslogd.sys_log == uttrue)
-		{
-			int priority = 0;
-			switch(*msg)
-			{
-				case 'D':
-					priority = LOG_LOCAL0 | LOG_DEBUG;
-					break;
-				case 'I':
-					priority = LOG_LOCAL0 | LOG_INFO;
-					break;
-				case 'E':
-					priority = LOG_LOCAL0 | LOG_ERR;
-					break;
-				default:
-					goto LOG_PRINT_END;
-			}
-			syslog(priority, "%s", msg);
-		}
-	}
+	if(!g_init) return FAIL;
 
-LOG_PRINT_END:
-	return;
+	struct timeval a;
+	struct tm *b;
+	gettimeofday(&a, NULL);
+	b = localtime(&a.tv_sec);
+	strftime(log_hdr, 30, "%F %T", b); // automatically append the terminate-character at the end.
+									   // Format: 2025-11-01 12:49:38
+	sprintf(log_hdr + 19, ".%03d", (int) (a.tv_usec >> 10));
+	LogType lt;
+	switch(type)
+	{
+		case 1:
+			lt = INFO;
+			break;
+		case 2:
+			lt = WARN;
+			break;
+		case 3:
+			lt = ERROR;
+			break;
+		default:
+			lt = DEBUG;
+			break;
+	}
+	sprintf(log_hdr + 23, " %C-%s: ", lt, tag);
+
+	printf("%s%s\n", log_hdr, text);
+
+	return SUCC;
 }
 
-void log_(LogType type, const char *tag, const char* msg, ...)
+void cl_log(LogType type, const char *tag, const char* msg, ...)
 {
 	va_list args;
-	va_start(args, pked_buff);
-	vsnprintf(upkbf, LOG_BUF_LEN, pked_buff, args);
+	va_start(args, msg);
+	vsnprintf(log_buf, LOG_BUF_SZ - 1, msg, args);
 	va_end(args);
-		char buf[LOG_BUF_LEN] = {'D', ' ', 0};
-		UNPACK_MSG(msg, buf + 2);
-		if(strlen(buf) < (LOG_BUF_LEN - 1))
-		{
-			log_print(buf);
-			ret = SUCCESS;
-		}
+
+	if(s_prtfun) s_prtfun(type, tag, log_buf);
+	else def_print_fun(type, tag, log_buf);
+}
+
+print_fun log_get_def_prtfun()
+{
+	return def_print_fun;
 }
 
 Ret log_init()
 {
-	Ret ret = SUCC;
+	if(g_init) return SUCC;
 	if(pthread_mutex_init(&lock, NULL))
 	{
 		perror("mutex_init");
-		ret = FAIL;
+		return FAIL;
 	}
 
-	initialized = true;
-	return ret;
+	log_hdr = (char *) malloc(LOG_HDR_SZ);
+	if(log_hdr == NULL)
+	{
+		perror("malloc log-hdr");
+		return FAIL;
+	}
+
+	log_buf = (char *) malloc(LOG_BUF_SZ);
+	if(log_buf == NULL)
+	{
+		perror("malloc log-buf");
+		free(log_hdr);
+		log_hdr = NULL;
+		return FAIL;
+	}
+
+	g_init = true;
+	return SUCC;
 }
 
 void log_deinit()
 {
-	initialized = false;
+	g_init = false;
+	{
+	struct timespec ts = {
+		.tv_sec = 0,
+		.tv_nsec = 50 * 1000000 // 50ms
+	};
+	nanosleep(&ts, NULL); // To wait log-print finish
+	}
+	free(log_hdr);
+	free(log_buf);
+	log_hdr = NULL;
+	log_buf = NULL;
 	pthread_mutex_destroy(&lock);
 }
 

@@ -2,19 +2,22 @@
 #define __CL_LOG_H__
 
 typedef enum {
-	DEBUG,
-	INFO,
-	WARN,
-	ERROR
+	DEBUG = 'D',
+	INFO = 'I',
+	WARN = 'W',
+	ERROR = 'E'
 } LogType;
 
-typedef Ret (*log_printer)(int type, const char *tag, const char *text);
+void cl_log(LogType type, const char *tag, const char* msg, ...);
 
-void log_(LogType type, const char *tag, const char* msg, ...);
-Ret log_init();
-void log_deinit();
-Ret register_log_printer(log_printer printer);
+#define CL_TAG cltag // Each .c file that include this header must defined a char * variable named 'cltag'
+				  // Eg: const static char *cltag = "my-tag";
+#define TAG const static char *cltag
 
+#define CLOGD(fmt, args...) cl_log(DEBUG, CL_TAG, fmt, ##args)
+#define CLOGI(fmt, args...) cl_log(INFO, CL_TAG, fmt, ##args)
+#define CLOGW(fmt, args...) cl_log(WARN, CL_TAG, fmt, ##args)
+#define CLOGE(fmt, args...) cl_log(ERROR, CL_TAG, fmt, ##args)
 
 #endif
 
