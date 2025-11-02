@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "cl_def.h"
 #include "cl_ccll.h"
@@ -27,7 +28,8 @@ static void test_list()
 	assert(emps.prev == &emps);
 
 	int i;
-	for(i = 0; i < 100; i++)
+#define S 100
+	for(i = 0; i < S; i++)
 	{
 		Employee *emp = (Employee *) malloc(sizeof(Employee));
 		assert(emp != NULL);
@@ -39,8 +41,35 @@ static void test_list()
 		list_add(&emp->list, &emps);
 		assert(list_empty(&emps) == false);
 	}
-
-
+	// Check the size of list
+	assert(list_size(&emps) == S);
+	// Check the value
+	LIST_HEAD *node = &emps;
+	for(i = 0; i < S; i++)
+	{
+		LIST_HEAD *a = node->next;
+		assert(a != NULL);
+		Employee *b = container_of(a, Employee, list);
+		assert(b != NULL);
+		assert(b->id == i);
+		assert(b->age == (i << 2));
+		assert(strlen(b->name) == 11);
+		assert(strncmp(b->name, "employee", 8) == 0);
+		node = node->next;
+	}
+	// Check remove node from list
+	node = &emps;
+	for(i = 0; i < S; i++)
+	{
+		LIST_HEAD *a = node->next;
+		assert(a != NULL);
+		Employee *b = container_of(a, Employee, list);
+		assert(b != NULL);
+		list_del(a);
+		assert(list_size(&emps) == (S - i - 1));
+		free(b);
+	}
+#undef S
 
 	DONE;
 }

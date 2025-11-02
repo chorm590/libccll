@@ -11,12 +11,14 @@ typedef struct list_head LIST_HEAD;
 
 static inline void init_list_head(LIST_HEAD *list)
 {
+	if(list == NULL) return;
 	list->prev = list;
 	list->next = list;
 }
 
 static inline void __list_add(LIST_HEAD *prev, LIST_HEAD *new, LIST_HEAD *next)
 {
+	if(prev == NULL || new == NULL || next == NULL) return;
 	prev->next = new;
 	new->prev = prev;
 	new->next = next;
@@ -35,6 +37,7 @@ static inline void list_add(LIST_HEAD *new, LIST_HEAD *head)
 
 static inline void list_del(LIST_HEAD *node)
 {
+	if(node == NULL) return;
 	node->prev->next = node->next;
 	node->next->prev = node->prev;
 	node->prev = NULL;
@@ -43,7 +46,26 @@ static inline void list_del(LIST_HEAD *node)
 
 static inline Bool list_empty(LIST_HEAD *head)
 {
+	if(head == NULL) return true;
 	return head->prev == head;
+}
+
+static inline size_t list_size(LIST_HEAD *head)
+{
+	if(head == NULL) return -1;
+	size_t cnt = 0;
+	LIST_HEAD *a = head;
+	int i = 0;
+	while(true)
+	{
+		i++;
+		LIST_HEAD *b = a->next;
+		if(b == NULL || head == b) break;
+		cnt++;
+		a = b;
+	}
+
+	return cnt;
 }
 
 #define list_for_each(pos, head) \
