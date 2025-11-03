@@ -13,6 +13,20 @@ TAG = "test";
 
 #define DONE CLOGI("\e[32m%s\e[0m done", __FUNCTION__)
 
+static void test_alloc()
+{
+	char *buf1 = MALLOC(32);
+	printf("addr of buf1: %p\n", buf1);
+	cl_iter_objs();
+	FREE(buf1);
+	cl_iter_objs();
+}
+
+static void test_common()
+{
+	test_alloc();
+}
+
 static void test_list()
 {
 	typedef struct {
@@ -81,7 +95,8 @@ static void test_queue()
 
 static void test()
 {
-	test_queue();
+	test_common();
+	//test_queue();
 }
 
 int main()
