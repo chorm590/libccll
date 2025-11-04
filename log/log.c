@@ -17,9 +17,9 @@
 
 extern print_fun s_prtfun;
 
-static char *log_hdr;
-static char *log_buf;
-static pthread_mutex_t lock;
+static char *l_log_hdr;
+static char *l_log_buf;
+static pthread_mutex_t l_lock;
 static char g_init = false;
 
 static int def_print_fun(int type, const char *tag, const char *text)
@@ -30,9 +30,9 @@ static int def_print_fun(int type, const char *tag, const char *text)
 	struct tm *b;
 	gettimeofday(&a, NULL);
 	b = localtime(&a.tv_sec);
-	strftime(log_hdr, 30, "%F %T", b); // automatically append the terminate-character at the end.
-									   // Format: 2025-11-01 12:49:38
-	sprintf(log_hdr + 19, ".%03d", (int) (a.tv_usec >> 10));
+	strftime(l_log_hdr, 30, "%F %T", b); // automatically append the terminate-character at the end.
+										 // Format: 2025-11-01 12:49:38
+	sprintf(l_log_hdr + 19, ".%03d", (int) (a.tv_usec >> 10));
 	LogType lt;
 	switch(type)
 	{
@@ -49,22 +49,29 @@ static int def_print_fun(int type, const char *tag, const char *text)
 			lt = DEBUG;
 			break;
 	}
-	sprintf(log_hdr + 23, " %C-%s: ", lt, tag);
+	sprintf(l_log_hdr + 23, " %C-%s: ", lt, tag);
 
-	printf("%s%s\n", log_hdr, text);
+	printf("%s%s\n", l_log_hdr, text);
 
 	return SUCC;
 }
 
 void cl_log(LogType type, const char *tag, const char* msg, ...)
 {
+	if(pthread_mutex_lock(&l_lock))
+	{
+		fprintf(stderr, "lock for log failed\n");
+		return;
+	}
+
 	va_list args;
 	va_start(args, msg);
-	vsnprintf(log_buf, LOG_BUF_SZ - 1, msg, args);
+	vsnprintf(l_log_buf, LOG_BUF_SZ - 1, msg, args);
 	va_end(args);
 
-	if(s_prtfun) s_prtfun(type, tag, log_buf);
-	else def_print_fun(type, tag, log_buf);
+	if(s_prtfun) s_prtfun(type, tag, l_log_buf);
+	else def_print_fun(type, tag, l_log_buf);
+	pthread_mutex_unlock(&l_lock);
 }
 
 print_fun log_get_def_prtfun()
@@ -75,25 +82,25 @@ print_fun log_get_def_prtfun()
 Ret log_init()
 {
 	if(g_init) return SUCC;
-	if(pthread_mutex_init(&lock, NULL))
+	if(pthread_mutex_init(&l_lock, NULL))
 	{
 		perror("mutex_init");
 		return FAIL;
 	}
 
-	log_hdr = (char *) malloc(LOG_HDR_SZ);
-	if(log_hdr == NULL)
+	l_log_hdr = (char *) malloc(LOG_HDR_SZ);
+	if(l_log_hdr == NULL)
 	{
 		perror("malloc log-hdr");
 		return FAIL;
 	}
 
-	log_buf = (char *) malloc(LOG_BUF_SZ);
-	if(log_buf == NULL)
+	l_log_buf = (char *) malloc(LOG_BUF_SZ);
+	if(l_log_buf == NULL)
 	{
 		perror("malloc log-buf");
-		free(log_hdr);
-		log_hdr = NULL;
+		free(l_log_hdr);
+		l_log_hdr = NULL;
 		return FAIL;
 	}
 
@@ -111,10 +118,10 @@ void log_deinit()
 	};
 	nanosleep(&ts, NULL); // To wait log-print finish
 	}
-	free(log_hdr);
-	free(log_buf);
-	log_hdr = NULL;
-	log_buf = NULL;
-	pthread_mutex_destroy(&lock);
+	free(l_log_hdr);
+	free(l_log_buf);
+	l_log_hdr = NULL;
+	l_log_buf = NULL;
+	pthread_mutex_destroy(&l_lock);
 }
 

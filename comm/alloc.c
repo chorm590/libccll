@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "def.h"
 #include "alloc.h"
@@ -14,11 +15,19 @@ typedef struct {
 	char fun[24];
 	char tag[24];
 	int line;
+	time_t tick;
 	void *addr;
 	size_t size; // On bytes
 	LIST_HEAD list;
 } Obj;
 static const size_t obj_sz = sizeof(Obj);
+
+
+Ret alloc_init()
+{
+
+	return SUCC;
+}
 
 void * cl_malloc(const char *fun, const int line_no, const char *tag, int size_on_bytes)
 {
@@ -37,8 +46,9 @@ void * cl_malloc(const char *fun, const int line_no, const char *tag, int size_o
 		return NULL;
 	}
 	sprintf(obj->fun, "%s", fun);
-	obj->line = line_no;
 	sprintf(obj->tag, "%s", tag);
+	obj->line = line_no;
+	obj->tick = time(NULL);
 	obj->addr = new_mem;
 	obj->size = size_on_bytes;
 	list_add(&obj->list, &l_objs);
@@ -74,7 +84,7 @@ void cl_iter_objs()
 	Obj *pos;
 	list_for_each_entry(pos, &l_objs, list)
 	{
-		PRT("  %s/%s/L%d, addr: %p, size: %ld", pos->tag, pos->fun, pos->line, pos->addr, pos->size);
+		PRT("  %ld [%s] %s+%d: addr: %p, size: %ld", pos->tick, pos->tag, pos->fun, pos->line, pos->addr, pos->size);
 	}
 	PRT("  Done!");
 #undef PRT

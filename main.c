@@ -11,6 +11,14 @@ TAG = "main";
 int s_init = false;
 print_fun s_prtfun;
 
+#define INIT(what) \
+	if(what##_init() != SUCC) \
+	{ \
+		fprintf(stderr, "init " #what " failed\n"); \
+		return FAIL; \
+	}
+
+
 Ret cl_init(print_fun pfun)
 {
 	if(s_init) return SUCC;
@@ -20,11 +28,9 @@ Ret cl_init(print_fun pfun)
 		pfun = log_get_def_prtfun();
 		printf("using def-print-fun\n");
 	}
-	if(log_init() != SUCC)
-	{
-		fprintf(stderr, "init log failed\n");
-		return FAIL;
-	}
+
+	INIT(log);
+	INIT(alloc);
 
 	s_prtfun = pfun;
 	s_init = true;

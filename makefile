@@ -59,6 +59,7 @@ cfgs:
 clean:
 	@echo "cleaning..."
 	@if [ -d out ]; then rm -rf out; fi
+	@echo "clean done"
 
 test: all
 	@echo "making testing..."
