@@ -14,6 +14,7 @@
 #include "ccll.h"
 #include "_log.h"
 #include "log.h"
+#include "wait.h"
 
 extern print_fun s_prtfun;
 
@@ -111,13 +112,7 @@ Ret cl_log_init()
 void cl_log_deinit()
 {
 	g_init = false;
-	{
-	struct timespec ts = {
-		.tv_sec = 0,
-		.tv_nsec = 50 * 1000000 // 50ms
-	};
-	nanosleep(&ts, NULL); // To wait log-print finish
-	}
+	SLEEP_MS(50); // To wait log-print finish
 	free(l_log_hdr);
 	free(l_log_buf);
 	l_log_hdr = NULL;

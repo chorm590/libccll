@@ -1,10 +1,10 @@
 #ifndef __CL_LIST_H__
 #define __CL_LIST_H__
 
-struct list_head {
-	struct list_head *next, *prev;
-};
 typedef struct list_head LIST_HEAD;
+struct list_head {
+	LIST_HEAD *next, *prev;
+};
 
 #define CRE_LIST_HEAD(name) \
 	LIST_HEAD name = { &(name), &(name) }

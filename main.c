@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdint.h>
 
 #include "_def.h"
 #include "def.h"
@@ -6,6 +7,8 @@
 #include "_log.h"
 #include "log.h"
 #include "_alloc.h"
+#include "list.h"
+#include "event.h"
 #include "_event.h"
 
 TAG = "main";
