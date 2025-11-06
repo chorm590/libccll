@@ -74,12 +74,12 @@ void cl_log(LogType type, const char *tag, const char* msg, ...)
 	pthread_mutex_unlock(&l_lock);
 }
 
-print_fun log_get_def_prtfun()
+print_fun cl_log_get_def_prtfun()
 {
 	return def_print_fun;
 }
 
-Ret log_init()
+Ret cl_log_init()
 {
 	if(g_init) return SUCC;
 	if(pthread_mutex_init(&l_lock, NULL))
@@ -108,7 +108,7 @@ Ret log_init()
 	return SUCC;
 }
 
-void log_deinit()
+void cl_log_deinit()
 {
 	g_init = false;
 	{

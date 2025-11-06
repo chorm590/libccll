@@ -12,6 +12,7 @@ LD := $(CROSS_COMPILE)ld
 AR := $(CROSS_COMPILE)ar
 
 SRCS := comm/alloc.c \
+		evt/event.c \
 		log/log.c \
 		main.c
 
@@ -20,6 +21,7 @@ CFLAGS_C := -fPIC -Wall
 CFLAGS_L := -shared -Wall
 INCS := -Icomm/inc \
 		-Icfg/inc \
+		-Ievt/inc \
 		-Ilog/inc \
 		-Iqueue/inc \
 		-Isys/inc \

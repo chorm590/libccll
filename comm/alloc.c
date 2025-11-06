@@ -23,9 +23,9 @@ typedef struct {
 static const size_t obj_sz = sizeof(Obj);
 
 
-Ret alloc_init()
+Ret cl_alloc_init()
 {
-
+	// TODO
 	return SUCC;
 }
 

@@ -5,6 +5,8 @@
 #include "ccll.h"
 #include "_log.h"
 #include "log.h"
+#include "_alloc.h"
+#include "_event.h"
 
 TAG = "main";
 
@@ -12,7 +14,7 @@ int s_init = false;
 print_fun s_prtfun;
 
 #define INIT(what) \
-	if(what##_init() != SUCC) \
+	if(cl_##what##_init() != SUCC) \
 	{ \
 		fprintf(stderr, "init " #what " failed\n"); \
 		return FAIL; \
@@ -25,12 +27,13 @@ Ret cl_init(print_fun pfun)
 	s_prtfun = NULL;
 	if(pfun == NULL)
 	{
-		pfun = log_get_def_prtfun();
+		pfun = cl_log_get_def_prtfun();
 		printf("using def-print-fun\n");
 	}
 
 	INIT(log);
 	INIT(alloc);
+	INIT(evt);
 
 	s_prtfun = pfun;
 	s_init = true;
