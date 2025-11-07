@@ -2,7 +2,7 @@
 #define __CL__EVENT_H__
 
 typedef struct {
-	uint16_t evt_no;
+	uint16_t no;
 	cl_evt_cb cb;
 	LIST_HEAD list;
 } CL_evt_lsnrs;

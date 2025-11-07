@@ -86,7 +86,7 @@ void cl_iter_objs()
 	{
 		PRT("  %ld [%s] %s+%d: addr: %p, size: %ld", pos->tick, pos->tag, pos->fun, pos->line, pos->addr, pos->size);
 	}
-	PRT("  Done!");
+	PRT("  ----");
 #undef PRT
 }
 

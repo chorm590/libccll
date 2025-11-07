@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "cl_def.h"
@@ -8,6 +9,8 @@
 #include "cl_log.h"
 #include "cl_alloc.h"
 #include "cl_list.h"
+#include "cl_event.h"
+#include "cl_wait.h"
 
 TAG = "test";
 
@@ -93,10 +96,41 @@ static void test_queue()
 	test_list();
 }
 
+typedef struct {
+	char txt[18];
+	int num;
+} Tst_Evt_Dat1;
+
+static void _tst_evt_dat1_free_fun(void *data)
+{
+	TRACE();
+	if(data == NULL) return;
+
+	Tst_Evt_Dat1 *dat1 = (Tst_Evt_Dat1 *) data;
+	FREE(dat1);
+}
+
+static void test_event()
+{
+	TRACE();
+	cl_iter_objs();
+	Tst_Evt_Dat1 *dat1 = (Tst_Evt_Dat1 *) MALLOC(sizeof(Tst_Evt_Dat1));
+	Ret ret = cl_evt_pub(12, (void *) dat1, _tst_evt_dat1_free_fun);
+	CLOGD("ret of pub evt-12: %d", ret);
+	SLEEP(1);
+	Tst_Evt_Dat1 *dat1_2 = (Tst_Evt_Dat1 *) MALLOC(sizeof(Tst_Evt_Dat1));
+	ret = cl_evt_pub(13, (void *) dat1_2, _tst_evt_dat1_free_fun);
+	CLOGD("ret of pub evt-13: %d", ret);
+	SLEEP(2);
+	cl_iter_objs();
+	DONE;
+}
+
 static void test()
 {
-	test_common();
+	//test_common();
 	//test_queue();
+	test_event();
 }
 
 int main()

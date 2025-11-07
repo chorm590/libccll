@@ -19,6 +19,7 @@ SRCS := comm/alloc.c \
 OBJS := $(SRCS:.c=.o)
 CFLAGS_C := -fPIC -Wall
 CFLAGS_L := -shared -Wall
+LDFLAGS := -lpthread
 INCS := -Icomm/inc \
 		-Icfg/inc \
 		-Ievt/inc \
@@ -32,7 +33,7 @@ OBJS_C := $(addprefix $(OBJ_DIR)/, $(OBJS))
 
 all: clean env ext_lib $(OBJS)
 	@echo "making $(NAME)..."
-	$(CC) $(CFLAGS_L) -o out/lib/$(OUTPUT_NAME) $(OBJS_C)
+	$(CC) $(CFLAGS_L) -o out/lib/$(OUTPUT_NAME) $(OBJS_C) $(LDFLAGS)
 	@echo "installing the includes..."
 	@for hdr in $$(find . -type f ! -name "_*" | grep "\.h$$"); \
 		do \
