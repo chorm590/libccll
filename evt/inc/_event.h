@@ -5,7 +5,7 @@ typedef struct {
 	uint16_t no;
 	cl_evt_cb cb;
 	LIST_HEAD list;
-} CL_evt_lsnrs;
+} CL_EVT_LSNR;
 
 Ret cl_evt_init();
 void cl_evt_deinit();

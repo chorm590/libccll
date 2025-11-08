@@ -1,9 +1,9 @@
 #ifndef __CL_EVENT_H__
 #define __CL_EVENT_H__
 
-typedef struct CL_Event CL_Evt;
+typedef struct CLEvent CL_EVT;
 typedef void (*cl_evt_free)(void *data);
-struct CL_Event {
+struct CLEvent {
 	uint16_t no;
 	void *data;
 	cl_evt_free free_fun;

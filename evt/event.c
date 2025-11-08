@@ -79,7 +79,7 @@ Ret cl_evt_pub(uint16_t evt_no, void *data, cl_evt_free free_fun)
 	}
 
 	Ret ret = SUCC;
-	CL_Evt *new_evt = MALLOC(sizeof(CL_Evt));
+	CL_EVT *new_evt = MALLOC(sizeof(CL_EVT));
 	if(new_evt == NULL)
 	{
 		CLOGE("malloc failed");
@@ -118,19 +118,74 @@ Ret cl_evt_sub(uint16_t evt_no, cl_evt_cb callback)
 		return FAIL;
 	}
 
-	CL_evt_lsnrs *lsnr;
+	CL_EVT_LSNR *lsnr;
 	list_for_each_entry(lsnr, &l_li_lsnrs, list)
 	{
 		if(lsnr->no == evt_no && lsnr->cb == callback)
 		{
 			CLOGW("Existing sub for evt-%d", evt_no);
-			return FAIL;
+			goto UNLOCK1146;
 		}
 	}
 
-	// Register the subscribe
-	HERE
+	// Create subscribe node
+	CL_EVT_LSNR *new_lsnr = (CL_EVT_LSNR *) MALLOC(sizeof(CL_EVT_LSNR));
+	if(new_lsnr == NULL)
+	{
+		CLOGE("malloc failed");
+		goto UNLOCK1146;
+	}
+	new_lsnr->no = evt_no;
+	new_lsnr->cb = callback;
+	// no need to initilize the 'list'
 
+	// Register the subscribe
+	list_add(&new_lsnr->list, &l_li_lsnrs);
+
+UNLOCK1146:
+	if(pthread_mutex_unlock(&l_mtx_sub))
+	{
+		CLOGE("unlock for sub-evt failed, err: %d", errno);
+		return FAIL;
+	}
+
+	return SUCC;
+}
+
+Ret cl_evt_unsub(uint16_t evt_no, cl_evt_cb callback)
+{
+	TRACE();
+	if(callback == NULL)
+	{
+		CLOGE("null 'callback'");
+		return FAIL;
+	}
+
+	if(pthread_mutex_lock(&l_mtx_sub))
+	{
+		CLOGE("lock for unsub-evt failed, err: %d", errno);
+		return FAIL;
+	}
+
+	CL_EVT_LSNR *lsnr;
+	list_for_each_entry(lsnr, &l_li_lsnrs, list)
+	{
+		if(lsnr->no == evt_no && lsnr->cb == callback) goto CATCH2928;
+		lsnr = NULL; // clear it
+	}
+
+CATCH2928:
+	if(lsnr)
+	{
+		list_del(&lsnr->list);
+		CLOGD("subscribe removed");
+	}
+
+	if(pthread_mutex_unlock(&l_mtx_sub))
+	{
+		CLOGE("unlock for unsub-evt failed, err: %d", errno);
+		return FAIL;
+	}
 
 	return SUCC;
 }
@@ -151,10 +206,10 @@ static void * _evt_thread(void *data)
 		}
 
 		// 2. popup an event
-		CL_Evt *evt = NULL;
+		CL_EVT *evt = NULL;
 		if(l_li_evt.next != &l_li_evt)
 		{
-			evt = container_of(l_li_evt.next, CL_Evt, list);
+			evt = container_of(l_li_evt.next, CL_EVT, list);
 			list_del(&evt->list);
 		}
 
@@ -167,7 +222,7 @@ static void * _evt_thread(void *data)
 		// 3. notify the listeners
 		if(evt)
 		{
-			CL_evt_lsnrs *lsnr;
+			CL_EVT_LSNR *lsnr;
 			list_for_each_entry(lsnr, &l_li_lsnrs, list)
 			{
 				if(lsnr->cb(evt->no, evt->data))

@@ -91,6 +91,9 @@ static void test_list()
 	DONE;
 }
 
+/******************************************
+ **              queue begin             **
+ *****************************************/
 static void test_queue()
 {
 	test_list();
@@ -98,30 +101,70 @@ static void test_queue()
 
 typedef struct {
 	char txt[18];
-	int num;
-} Tst_Evt_Dat1;
+	int no;
+} TST_EVT_DAT1;
+
+typedef struct {
+	TST_EVT_DAT1 *dat1;
+	int no;
+} TST_EVT_DAT2;
+
+typedef struct {
+	char *a;
+	int no;
+} TST_EVT_DAT3;
 
 static void _tst_evt_dat1_free_fun(void *data)
 {
 	TRACE();
 	if(data == NULL) return;
 
-	Tst_Evt_Dat1 *dat1 = (Tst_Evt_Dat1 *) data;
+	TST_EVT_DAT1 *dat1 = (TST_EVT_DAT1 *) data;
+	CLOGD("freeing no: %d", dat1->no);
 	FREE(dat1);
+}
+
+static void _tst_evt_dat2_free_fun(void *data)
+{
+	TRACE();
+	if(data == NULL) return;
+
+	TST_EVT_DAT2 *dat2 = (TST_EVT_DAT2 *) data;
+	_tst_evt_dat1_free_fun(dat2->dat1);
+	CLOGD("freeing no: %d", dat2->no);
+	FREE(dat2);
+}
+
+static void _tst_evt_dat3_free_fun(void *data)
+{
+	TRACE();
+	if(data == NULL) return;
+
+	TST_EVT_DAT3 *dat3 = (TST_EVT_DAT3 *) data;
+	CLOGD("freeing no: %d", dat3->no);
+	FREE(dat3->a);
+	FREE(dat3);
 }
 
 static void test_event()
 {
 	TRACE();
-	cl_iter_objs();
-	Tst_Evt_Dat1 *dat1 = (Tst_Evt_Dat1 *) MALLOC(sizeof(Tst_Evt_Dat1));
+
+	// 1
+	TST_EVT_DAT1 *dat1 = (TST_EVT_DAT1 *) MALLOC(sizeof(TST_EVT_DAT1));
 	Ret ret = cl_evt_pub(12, (void *) dat1, _tst_evt_dat1_free_fun);
 	CLOGD("ret of pub evt-12: %d", ret);
+
 	SLEEP(1);
-	Tst_Evt_Dat1 *dat1_2 = (Tst_Evt_Dat1 *) MALLOC(sizeof(Tst_Evt_Dat1));
+
+	// 2
+	TST_EVT_DAT1 *dat1_2 = (TST_EVT_DAT1 *) MALLOC(sizeof(TST_EVT_DAT1));
 	ret = cl_evt_pub(13, (void *) dat1_2, _tst_evt_dat1_free_fun);
 	CLOGD("ret of pub evt-13: %d", ret);
+
 	SLEEP(2);
+
+	// 3
 	cl_iter_objs();
 	DONE;
 }
