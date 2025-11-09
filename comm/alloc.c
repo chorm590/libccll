@@ -1,6 +1,8 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
 #include <time.h>
 
 #include "def.h"
@@ -53,6 +55,8 @@ void * cl_malloc(const char *fun, const int line_no, const char *tag, int size_o
 	obj->size = size_on_bytes;
 	list_add(&obj->list, &l_objs);
 
+	memset(new_mem, 0, size_on_bytes);
+
 	return new_mem;
 }
 
@@ -90,3 +94,7 @@ void cl_iter_objs()
 #undef PRT
 }
 
+uint32_t cl_allocing_cnt()
+{
+	return list_size(&l_objs);
+}

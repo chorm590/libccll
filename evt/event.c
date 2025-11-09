@@ -141,6 +141,7 @@ Ret cl_evt_sub(uint16_t evt_no, cl_evt_cb callback)
 
 	// Register the subscribe
 	list_add(&new_lsnr->list, &l_li_lsnrs);
+	CLOGD("new subscriber registered");
 
 UNLOCK1146:
 	if(pthread_mutex_unlock(&l_mtx_sub))
@@ -178,6 +179,7 @@ CATCH2928:
 	if(lsnr)
 	{
 		list_del(&lsnr->list);
+		FREE(lsnr);
 		CLOGD("subscribe removed");
 	}
 

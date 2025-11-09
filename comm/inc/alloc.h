@@ -6,5 +6,6 @@ void cl_free(void *ptr);
 #define MALLOC(bytes) cl_malloc(__FUNCTION__, __LINE__, cltag, bytes)
 #define FREE(ptr) cl_free(ptr)
 void cl_iter_objs();
+uint32_t cl_allocing_cnt();
 
 #endif

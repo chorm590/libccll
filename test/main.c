@@ -146,6 +146,16 @@ static void _tst_evt_dat3_free_fun(void *data)
 	FREE(dat3);
 }
 
+static Bool _tst_evt_cb1(uint16_t evt_no, void *data)
+{
+	TRACE();
+	CLOGI("evt-no: %d", evt_no);
+	TST_EVT_DAT1 *dat1 = (TST_EVT_DAT1 *) data;
+	CLOGI("txt: %s, no: %d", dat1->txt, dat1->no);
+
+	return false;
+}
+
 static void test_event()
 {
 	TRACE();
@@ -154,6 +164,7 @@ static void test_event()
 	TST_EVT_DAT1 *dat1 = (TST_EVT_DAT1 *) MALLOC(sizeof(TST_EVT_DAT1));
 	Ret ret = cl_evt_pub(12, (void *) dat1, _tst_evt_dat1_free_fun);
 	CLOGD("ret of pub evt-12: %d", ret);
+	CLOGD("\n\n");
 
 	SLEEP(1);
 
@@ -161,11 +172,34 @@ static void test_event()
 	TST_EVT_DAT1 *dat1_2 = (TST_EVT_DAT1 *) MALLOC(sizeof(TST_EVT_DAT1));
 	ret = cl_evt_pub(13, (void *) dat1_2, _tst_evt_dat1_free_fun);
 	CLOGD("ret of pub evt-13: %d", ret);
+	CLOGD("\n\n");
 
 	SLEEP(2);
 
 	// 3
+	TST_EVT_DAT2 *dat2 = (TST_EVT_DAT2 *) MALLOC(sizeof(TST_EVT_DAT2));
+	ret = cl_evt_pub(14, (void *) dat2, _tst_evt_dat2_free_fun);
+	CLOGD("ret of pub evt-14: %d", ret);
+	CLOGD("\n\n");
+
+	SLEEP(2);
+
+	// 4
+	ret = cl_evt_sub(15, _tst_evt_cb1);
+	CLOGD("ret of sub evt-15: %d", ret);
+	dat1 = (TST_EVT_DAT1 *) MALLOC(sizeof(TST_EVT_DAT1));
+	sprintf(dat1->txt, "Hello guy!");
+	dat1->no = 185;
+	ret = cl_evt_pub(15, (void *) dat1, _tst_evt_dat1_free_fun);
+	CLOGD("ret of pub evt-15: %d", ret);
+	CLOGD("\n\n");
+	SLEEP(2);
+	cl_evt_unsub(15, _tst_evt_cb1);
+
+	SLEEP(5);
+
 	cl_iter_objs();
+	assert(cl_allocing_cnt() == 0);
 	DONE;
 }
 
