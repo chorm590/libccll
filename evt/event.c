@@ -141,7 +141,7 @@ Ret cl_evt_sub(uint16_t evt_no, cl_evt_cb callback)
 
 	// Register the subscribe
 	list_add(&new_lsnr->list, &l_li_lsnrs);
-	CLOGD("new subscriber registered");
+	CLOGD("new subscriber %d registered", new_lsnr->no);
 
 UNLOCK1146:
 	if(pthread_mutex_unlock(&l_mtx_sub))
@@ -168,19 +168,22 @@ Ret cl_evt_unsub(uint16_t evt_no, cl_evt_cb callback)
 		return FAIL;
 	}
 
-	CL_EVT_LSNR *lsnr;
+	CL_EVT_LSNR *lsnr = NULL;
+	Bool found = false;
 	list_for_each_entry(lsnr, &l_li_lsnrs, list)
 	{
-		if(lsnr->no == evt_no && lsnr->cb == callback) goto CATCH2928;
-		lsnr = NULL; // clear it
+		if(lsnr->no == evt_no && lsnr->cb == callback)
+		{
+			found = true;
+			break;
+		}
 	}
 
-CATCH2928:
-	if(lsnr)
+	if(found)
 	{
 		list_del(&lsnr->list);
 		FREE(lsnr);
-		CLOGD("subscribe removed");
+		CLOGD("subscribe %d removed", evt_no);
 	}
 
 	if(pthread_mutex_unlock(&l_mtx_sub))
@@ -189,7 +192,7 @@ CATCH2928:
 		return FAIL;
 	}
 
-	return SUCC;
+	return found ? SUCC : FAIL;
 }
 
 static void * _evt_thread(void *data)
@@ -200,7 +203,7 @@ static void * _evt_thread(void *data)
 	{
 		// 1. wait the signal
 		sem_wait(&l_sm_evt);
-		CLOGD("new evt caugth");
+		CLOGD("new evt");
 		if(pthread_mutex_lock(&l_mtx_evt))
 		{
 			CLOGE("lock the evt-thrd failed, err: %d", errno);
@@ -227,9 +230,9 @@ static void * _evt_thread(void *data)
 			CL_EVT_LSNR *lsnr;
 			list_for_each_entry(lsnr, &l_li_lsnrs, list)
 			{
-				if(lsnr->cb(evt->no, evt->data))
+				if(lsnr->no == evt->no && lsnr->cb(evt->no, evt->data))
 				{
-					CLOGI("evt %d was consumed");
+					CLOGI("evt %d was consumed", lsnr->no);
 					break;
 				}
 			}

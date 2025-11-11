@@ -120,7 +120,7 @@ static void _tst_evt_dat1_free_fun(void *data)
 	if(data == NULL) return;
 
 	TST_EVT_DAT1 *dat1 = (TST_EVT_DAT1 *) data;
-	CLOGD("freeing no: %d", dat1->no);
+	CLOGD("freeing1 no: %d", dat1->no);
 	FREE(dat1);
 }
 
@@ -131,7 +131,7 @@ static void _tst_evt_dat2_free_fun(void *data)
 
 	TST_EVT_DAT2 *dat2 = (TST_EVT_DAT2 *) data;
 	_tst_evt_dat1_free_fun(dat2->dat1);
-	CLOGD("freeing no: %d", dat2->no);
+	CLOGD("freeing2 no: %d", dat2->no);
 	FREE(dat2);
 }
 
@@ -141,8 +141,7 @@ static void _tst_evt_dat3_free_fun(void *data)
 	if(data == NULL) return;
 
 	TST_EVT_DAT3 *dat3 = (TST_EVT_DAT3 *) data;
-	CLOGD("freeing no: %d", dat3->no);
-	FREE(dat3->a);
+	CLOGD("freeing3 no: %d", dat3->no);
 	FREE(dat3);
 }
 
@@ -156,35 +155,82 @@ static Bool _tst_evt_cb1(uint16_t evt_no, void *data)
 	return false;
 }
 
+static Bool _tst_evt_cb2(uint16_t evt_no, void *data)
+{
+	TRACE();
+	CLOGI("evt-no: %d", evt_no);
+	TST_EVT_DAT2 *dat2 = (TST_EVT_DAT2 *) data;
+	TST_EVT_DAT1 *dat1 = dat2->dat1;
+	CLOGI("txt: %s, no: %d, no2: %d", dat1->txt, dat1->no, dat2->no);
+
+	return false;
+}
+
+static Bool _tst_evt_cb3(uint16_t evt_no, void *data)
+{
+	TRACE();
+	CLOGI("evt-no: %d", evt_no);
+	TST_EVT_DAT3 *dat3 = (TST_EVT_DAT3 *) data;
+	CLOGI("a: %s, no: %d", dat3->a, dat3->no);
+
+	return false;
+}
+
+static Bool _tst_evt_cb20(uint16_t evt_no, void *data)
+{
+	TRACE();
+	return _tst_evt_cb1(evt_no, data);
+}
+
+static Bool _tst_evt_cb21(uint16_t evt_no, void *data)
+{
+	TRACE();
+	return _tst_evt_cb1(evt_no, data);
+}
+
+static Bool _tst_evt_cb22(uint16_t evt_no, void *data)
+{
+	TRACE();
+	return _tst_evt_cb1(evt_no, data);
+}
+
+static Bool _tst_evt_cb23(uint16_t evt_no, void *data)
+{
+	TRACE();
+	_tst_evt_cb1(evt_no, data);
+	return true;
+}
+
 static void test_event()
 {
 	TRACE();
 
-	// 1
+	// 1. Just publish
+	CLOGI("\n\ncase 1");
 	TST_EVT_DAT1 *dat1 = (TST_EVT_DAT1 *) MALLOC(sizeof(TST_EVT_DAT1));
 	Ret ret = cl_evt_pub(12, (void *) dat1, _tst_evt_dat1_free_fun);
 	CLOGD("ret of pub evt-12: %d", ret);
-	CLOGD("\n\n");
 
 	SLEEP(1);
 
-	// 2
+	// 2. Just publish too
+	CLOGI("\n\ncase 2");
 	TST_EVT_DAT1 *dat1_2 = (TST_EVT_DAT1 *) MALLOC(sizeof(TST_EVT_DAT1));
 	ret = cl_evt_pub(13, (void *) dat1_2, _tst_evt_dat1_free_fun);
 	CLOGD("ret of pub evt-13: %d", ret);
-	CLOGD("\n\n");
 
-	SLEEP(2);
+	SLEEP(1);
 
-	// 3
+	// 3. Just publish too too
+	CLOGI("\n\ncase 3");
 	TST_EVT_DAT2 *dat2 = (TST_EVT_DAT2 *) MALLOC(sizeof(TST_EVT_DAT2));
 	ret = cl_evt_pub(14, (void *) dat2, _tst_evt_dat2_free_fun);
 	CLOGD("ret of pub evt-14: %d", ret);
-	CLOGD("\n\n");
 
-	SLEEP(2);
+	SLEEP(1);
 
-	// 4
+	// 4. Sub and Pub
+	CLOGI("\n\ncase 4");
 	ret = cl_evt_sub(15, _tst_evt_cb1);
 	CLOGD("ret of sub evt-15: %d", ret);
 	dat1 = (TST_EVT_DAT1 *) MALLOC(sizeof(TST_EVT_DAT1));
@@ -192,11 +238,92 @@ static void test_event()
 	dat1->no = 185;
 	ret = cl_evt_pub(15, (void *) dat1, _tst_evt_dat1_free_fun);
 	CLOGD("ret of pub evt-15: %d", ret);
-	CLOGD("\n\n");
-	SLEEP(2);
+	SLEEP(1);
 	cl_evt_unsub(15, _tst_evt_cb1);
 
-	SLEEP(5);
+	SLEEP(1);
+
+	// 5. Single sub and twice publish
+	CLOGI("\n\ncase 5");
+	ret = cl_evt_sub(16, _tst_evt_cb1);
+	CLOGD("ret of sub evt-16: %d", ret);
+	dat1 = (TST_EVT_DAT1 *) MALLOC(sizeof(TST_EVT_DAT1));
+	sprintf(dat1->txt, "Msg 15, body her");
+	dat1->no = 995;
+	ret = cl_evt_pub(15, (void *) dat1, _tst_evt_dat1_free_fun);
+	CLOGD("ret of pub evt-15: %d", ret);
+	dat1_2 = (TST_EVT_DAT1 *) MALLOC(sizeof(TST_EVT_DAT1));
+	sprintf(dat1_2->txt, "Msg 16, body her");
+	dat1_2->no = 996;
+	ret = cl_evt_pub(16, (void *) dat1_2, _tst_evt_dat1_free_fun);
+	CLOGD("ret of pub evt-16: %d", ret);
+	SLEEP(1);
+	cl_evt_unsub(16, _tst_evt_cb1);
+	dat1_2->txt[3] = 22;
+	dat1_2->no = 998; // It should cause care-dump
+
+	SLEEP(1);
+
+	// 6. Multiply sub and multiple pub
+	CLOGI("\n\ncase 6");
+	assert(cl_evt_sub(17, _tst_evt_cb1) == 0);
+	assert(cl_evt_sub(18, _tst_evt_cb2) == 0);
+	assert(cl_evt_sub(19, _tst_evt_cb3) == 0);
+	dat1 = (TST_EVT_DAT1 *) MALLOC(sizeof(TST_EVT_DAT1));
+	sprintf(dat1->txt, "msg 17-dat1");
+	dat1->no = 171;
+	dat2 = (TST_EVT_DAT2 *) MALLOC(sizeof(TST_EVT_DAT2));
+	dat2->dat1 = (TST_EVT_DAT1 *) MALLOC(sizeof(TST_EVT_DAT1));
+	sprintf(dat2->dat1->txt, "msg-18-dat2-dat1");
+	dat2->dat1->no = 1821;
+	dat2->no = 182;
+	TST_EVT_DAT3 *dat3 = (TST_EVT_DAT3 *) MALLOC(sizeof(TST_EVT_DAT3));
+	dat3->a = "msg-19,dat3";
+	dat3->no = 19;
+	assert(cl_evt_pub(19, (void *) dat3, _tst_evt_dat3_free_fun) == 0);
+	assert(cl_evt_pub(17, (void *) dat1, _tst_evt_dat1_free_fun) == 0);
+	assert(cl_evt_pub(18, (void *) dat2, _tst_evt_dat2_free_fun) == 0);
+	SLEEP(1);
+	assert(cl_evt_unsub(17, _tst_evt_cb1) == SUCC);
+	assert(cl_evt_unsub(18, _tst_evt_cb2) == SUCC);
+	assert(cl_evt_unsub(19, _tst_evt_cb3) == SUCC);
+	assert(cl_evt_unsub(18, _tst_evt_cb3) == FAIL);
+
+	SLEEP(1);
+
+	// 7. Multiple listener
+	CLOGI("\n\ncase 7");
+	assert(cl_evt_sub(20, _tst_evt_cb20) == 0);
+	assert(cl_evt_sub(20, _tst_evt_cb21) == 0);
+	assert(cl_evt_sub(20, _tst_evt_cb22) == 0);
+	dat1 = (TST_EVT_DAT1 *) MALLOC(sizeof(TST_EVT_DAT1));
+	sprintf(dat1->txt, "evt-20,,,");
+	dat1->no = 20;
+	assert(cl_evt_pub(20, (void *) dat1, _tst_evt_dat1_free_fun) == SUCC);
+	SLEEP(1);
+	assert(cl_evt_unsub(20, _tst_evt_cb20) == SUCC);
+	assert(cl_evt_unsub(20, _tst_evt_cb21) == SUCC);
+	assert(cl_evt_unsub(20, _tst_evt_cb22) == SUCC);
+
+	SLEEP(1);
+
+	// 8. Intercept event
+	CLOGI("\n\ncase 8");
+	assert(cl_evt_sub(21, _tst_evt_cb23) == 0);
+	assert(cl_evt_sub(21, _tst_evt_cb21) == 0);
+	assert(cl_evt_sub(21, _tst_evt_cb22) == 0);
+	dat1 = (TST_EVT_DAT1 *) MALLOC(sizeof(TST_EVT_DAT1));
+	sprintf(dat1->txt, "evt-21-,,,");
+	dat1->no = 21;
+	assert(cl_evt_pub(21, (void *) dat1, _tst_evt_dat1_free_fun) == SUCC);
+	SLEEP(1);
+	assert(cl_evt_unsub(21, _tst_evt_cb23) == SUCC);
+	assert(cl_evt_unsub(21, _tst_evt_cb21) == SUCC);
+	assert(cl_evt_unsub(21, _tst_evt_cb22) == SUCC);
+
+	SLEEP(1);
+
+	SLEEP(3);
 
 	cl_iter_objs();
 	assert(cl_allocing_cnt() == 0);
