@@ -24,6 +24,7 @@ TAG = "timer";
 typedef struct {
 	Bool srv;
 	int fd;
+	uint32_t repeats;
 	cl_timer_cb cb;
 	CLIST list;
 } Timer;
@@ -34,7 +35,6 @@ static pthread_mutex_t g_mtx_sock; // To ensure the safety of 'g_li_sock'
 static pthread_t g_thr_socks;
 
 static void * _timer_thread(void *data);
-static Ret _epoll_add(int fd);
 
 static int _cre_srv_sock()
 {
@@ -87,6 +87,7 @@ static Timer * _cre_node(int fd, cl_timer_cb cb)
 	Timer *node = (Timer *) MALLOC(sizeof(Timer));
 	node->srv = false;
 	node->fd = fd;
+	node->repeats = 0;
 	node->cb = cb;
 	init_list_node(&node->list);
 
@@ -112,7 +113,33 @@ static Ret _cre_srv_node(int srvfd)
 	return SUCC;
 }
 
-static Ret _cre_cli_node(const int sec, const int ms, cl_timer_cb cb)
+static Ret _epoll_add(int fd)
+{
+	struct epoll_event eev = {
+		.events = EPOLLIN,
+		.data.fd = fd,
+	};
+	if(epoll_ctl(epofd, EPOLL_CTL_ADD, fd, &eev))
+	{
+		CLOGE("add fd to epoll list failed, err: %d", errno);
+		return FAIL;
+	}
+
+	return SUCC;
+}
+
+static Ret _epoll_del(int fd)
+{
+	if(epoll_ctl(epofd, EPOLL_CTL_DEL, fd, NULL))
+	{
+		CLOGW("delete timerfd from epoll failed, err: %d", errno);
+		return FAIL;
+	}
+
+	return SUCC;
+}
+
+static Ret _cre_cli_node(const int sec, const int ms, const uint32_t repeats, cl_timer_cb cb)
 {
 	int fd = timerfd_create(CLOCK_MONOTONIC, 0);
 	if(fd == -1)
@@ -123,6 +150,7 @@ static Ret _cre_cli_node(const int sec, const int ms, cl_timer_cb cb)
 
 	// Enqueue to list
 	Timer *new_cli = _cre_node(fd, cb);
+	new_cli->repeats = repeats;
 	list_add(&new_cli->list, &g_li_sock);
 
 	// Add to epoll
@@ -156,30 +184,275 @@ static Ret _cre_cli_node(const int sec, const int ms, cl_timer_cb cb)
 	return SUCC;
 }
 
-static Ret _epoll_add(int fd)
+static void _new_timer(const int sec, const int ms, const uint32_t repeats, const cl_timer_cb cb)
 {
-	struct epoll_event eev = {
-		.events = EPOLLIN,
-		.data.fd = fd,
-	};
-	if(epoll_ctl(epofd, EPOLL_CTL_ADD, fd, &eev))
+	TRACE();
+	if(pthread_mutex_lock(&g_mtx_sock))
 	{
-		CLOGE("add fd to epoll list failed, err: %d", errno);
-		return FAIL;
+		LOG_LOCK_FAIL(new timer);
+		return;
 	}
 
-	return SUCC;
+	// Check whether exist
+	Timer *tmr;
+	list_for_each_entry(tmr, &g_li_sock, list)
+	{
+		if(tmr->cb == cb)
+		{
+			CLOGW("timer-cb registered");
+			goto UNLOCK5534;
+		}
+	}
+
+	// Check amount of timer in queue
+	if(list_size(&g_li_sock) >/*To exclude the first 'srv-node'*/ MAX_TIMER_CNT)
+	{
+		CLOGE("Too many timer in queue");
+		goto UNLOCK5534;
+	}
+
+	// Create new timer node
+	if(_cre_cli_node(sec, ms, repeats, cb) != SUCC)
+	{
+		CLOGE("cre timer node failed");
+		goto UNLOCK5534;
+	}
+	CLOGI("new timer on, %dS %dMS", sec, ms);
+
+UNLOCK5534:
+	if(pthread_mutex_unlock(&g_mtx_sock))
+	{
+		LOG_UNLOCK_FAIL(new timer);
+		exit(-1);
+	}
 }
 
-static Ret _epoll_del(int fd)
+static void _cancel_timerfd(int fd)
 {
-	if(epoll_ctl(epofd, EPOLL_CTL_DEL, fd, NULL))
+	struct itimerspec its = {0};
+	if(timerfd_settime(fd, 0, &its, NULL))
 	{
-		CLOGW("delete timerfd from epoll failed, err: %d", errno);
-		return FAIL;
+		CLOGE("cancel timerfd failed, err: %d", errno);
+	}
+	close(fd);
+}
+
+static void _rm_timer(const cl_timer_cb cb)
+{
+	TRACE();
+	if(pthread_mutex_lock(&g_mtx_sock))
+	{
+		LOG_LOCK_FAIL(remove timer);
+		return;
 	}
 
-	return SUCC;
+	Timer *tmr;
+	list_for_each_entry(tmr, &g_li_sock, list)
+	{
+		if(tmr->srv == false && tmr->cb == cb)
+		{
+			// Delete from epoll
+			_epoll_del(tmr->fd);
+			// Cancel timerfd
+			_cancel_timerfd(tmr->fd);
+			// Dequeue from list
+			list_del(&tmr->list);
+			FREE(tmr);
+			CLOGI("timer canceled");
+			break;
+		}
+	}
+}
+
+/*
+ * @return true
+ * 				Requesting destroy the timer-sys
+ * 		   false
+ * 		   		Continue epoll_wait
+ * */
+static Bool _srv_timer_proc(int fd)
+{
+	/*
+		receive(plaintext):
+			+----------+-------+--------+-------+------+-----------+----------------+
+			|  opcode  |  len  |  type  |  sec  |  ms  |  repeats  |  callback fun  |
+			+----------+-------+--------+-------+------+-----------+----------------+
+			|    1B    |   2B  |   1B   |   2B  |  2B  |     4B    |       8B       |
+			+----------+-------+--------+-------+------+-----------+----------------+
+			opcode:
+				   1
+			type:
+				 1 -- New timer request
+				 	  will be fail if 'callback fun' existed
+				 2 -- Cancel timer
+				 	  judge by 'callback fun'
+				 3 -- Destroy the timer-sys
+				 	  before exit the app
+			sec:
+				max 28800, 8h
+				min 0
+			ms:
+				max 1000, 1s
+				min 10, 10ms
+			repeats:
+					the times need to repeats
+
+		reply:
+			none
+	 * */
+#define SZ 20
+#define ERR(msg) \
+	CLOGE("msg from srv-node failed cause %s", msg)
+
+	uint8_t buf[SZ] = {0};
+	if(read(fd, buf, SZ) != SZ)
+	{
+		ERR("unexpected rlen");
+		return false;
+	}
+
+	int idx = 0;
+	if(buf[idx++] != 1)
+	{
+		ERR("mismatch opcode");
+		return false;
+	}
+
+	const int len = *((uint16_t *) (buf + idx));
+	CLOGD("len: %d", len);
+	idx += 2;
+	if(len != 13)
+	{
+		ERR("unexpected len");
+		return false;
+	}
+
+	const int type = buf[idx++];
+	CLOGD("type: %d", type);
+	switch(type)
+	{
+		case 1: {
+			const uint16_t sec = *((uint16_t *) (buf + idx));
+			idx += 2;
+			const uint16_t ms = *((uint16_t *) (buf + idx));
+			idx += 2;
+			const uint32_t rpe = *((uint32_t *) (buf + idx));
+			idx += 4;
+			void *cb_fun = (void *) (buf + idx);
+			CLOGD("sec: %d, ms: %d, rpe: %d, cb_fun: %p", sec, ms, rpe, cb_fun);
+			_new_timer(sec, ms, rpe, cb_fun);
+		} break;
+		case 2: {
+			idx += 8;
+			void *cb_fun = (void *) (buf + idx);
+			CLOGD("cb_fun: %p", cb_fun);
+			_rm_timer(cb_fun);
+		} break;
+		case 3:
+			CLOGW("Destroying the timer-sys");
+			return true;
+		default:
+			ERR("unsupported type");
+			return false;
+	}
+
+#undef ERR
+#undef SZ
+	return false;
+}
+
+static void _cli_timer_proc(int fd)
+{
+	CLOGD("timeout for %d", fd);
+	uint64_t val;
+	static size_t sz = sizeof(uint64_t);
+	if(read(fd, &val, sz) != sz)
+	{
+		CLOGE("read for timerfd %d failed, err: %d", errno);
+		return;
+	}
+
+	if(pthread_mutex_lock(&g_mtx_sock))
+	{
+		LOG_LOCK_FAIL(timeout proc);
+		return;
+	}
+
+	Timer *tmr;
+	list_for_each_entry(tmr, &g_li_sock, list)
+	{
+		if(tmr->srv || tmr->fd != fd) continue;
+		if(tmr->cb) tmr->cb();
+		if(tmr->repeats > 1) tmr->repeats--;
+		else if(tmr->repeats == 1)
+		{
+			_epoll_del(tmr->fd);
+			_cancel_timerfd(tmr->fd);
+			list_del(&tmr->list);
+			FREE(tmr);
+			CLOGI("timer %d used up", fd);
+		}
+		break;
+	}
+
+	if(pthread_mutex_unlock(&g_mtx_sock))
+	{
+		LOG_UNLOCK_FAIL(timeout proc);
+		exit(-1);
+	}
+}
+
+static void * _timer_thread(void *data)
+{
+	TRACE();
+	struct epoll_event *ev_buf = (struct epoll_event *) MALLOC(10 * sizeof(struct epoll_event));
+
+	int i;
+	while(true)
+	{
+		const int nrs = epoll_wait(epofd, ev_buf, 10, -1);
+		CLOGD("epoll wait, nrs: %d", nrs);
+		if(nrs < 0)
+		{
+			CLOGE("wait the epoll failed, err: %d", errno);
+			break;
+		}
+
+		for(i = 0; i < nrs; i++)
+		{
+			const int fd = (ev_buf + i)->data.fd;
+			Timer *tmr;
+			list_for_each_entry(tmr, &g_li_sock, list)
+			{
+				if(tmr->fd == fd)
+				{
+					if(tmr->srv)
+					{
+						if(_srv_timer_proc(fd)) goto TMROUT1722;
+					}
+					else _cli_timer_proc(fd);
+				}
+			}
+		}
+	}
+TMROUT1722:
+	CLOGW("out of timer thread");
+	const int cnt = list_size(&g_li_sock);
+	for(i = 0; i < cnt; i++)
+	{
+		Timer *tmr;
+		list_for_each_entry(tmr, &g_li_sock, list)
+		{
+			CLOGD("destroying %d", tmr->fd);
+			_epoll_del(tmr->fd);
+			list_del(&tmr->list);
+			FREE(tmr);
+			break;
+		}
+	}
+	FREE(ev_buf);
+
+	return NULL;
 }
 
 Ret cl_timer_init()
@@ -230,8 +503,7 @@ Ret cl_timer_init()
 		Timer *srv_node = container_of(g_li_sock.next, Timer, list);
 		FREE(srv_node);
 		LOG_UNLOCK_FAIL(sock);
-
-		return FAIL;
+		exit(-1);
 	}
 
 	epofd = epoll;
@@ -269,211 +541,15 @@ void cl_timer_deinit()
 	pthread_join(g_thr_socks, NULL);
 }
 
-static void _new_timer(const int sec, const int ms, const cl_timer_cb cb)
+Ret cl_timer_set(const uint16_t sec, const uint16_t ms, const int repeats, cl_timer_cb cb)
 {
 	TRACE();
-	if(pthread_mutex_lock(&g_mtx_sock))
-	{
-		LOG_LOCK_FAIL(new timer);
-		return;
-	}
-
-	// Check whether exist
-	Timer *tmr;
-	list_for_each_entry(tmr, &g_li_sock, list)
-	{
-		if(tmr->cb == cb)
-		{
-			CLOGW("timer-cb registered");
-			goto UNLOCK5534;
-		}
-	}
-
-	// Check amount of timer in queue
-	if(list_size(&g_li_sock) >/*To exclude the first 'srv-node'*/ MAX_TIMER_CNT)
-	{
-		CLOGE("Too many timer in queue");
-		goto UNLOCK5534;
-	}
-
-	// Create new timer node
-	if(_cre_cli_node(sec, ms, cb) != SUCC)
-	{
-		CLOGE("cre timer node failed");
-		goto UNLOCK5534;
-	}
-	CLOGI("new timer on, %dS %dMS", sec, ms);
-
-UNLOCK5534:
-	if(pthread_mutex_unlock(&g_mtx_sock))
-	{
-		LOG_UNLOCK_FAIL(new timer);
-		exit(-1);
-	}
+	return SUCC;
 }
 
-static void _rm_timer(const cl_timer_cb cb)
+Ret cl_timer_cancel(cl_timer_cb cb)
 {
 	TRACE();
-	if(pthread_mutex_lock(&g_mtx_sock))
-	{
-		LOG_LOCK_FAIL(remove timer);
-		return;
-	}
-
-	Timer *tmr;
-	list_for_each_entry(tmr, &g_li_sock, list)
-	{
-		if(tmr->srv == false && tmr->cb == cb)
-		{
-			// Delete from epoll
-			_epoll_del(tmr->fd);
-			close(tmr->fd);
-			// Dequeue from list
-			list_del(&tmr->list);
-			FREE(tmr);
-			CLOGI("timer canceled");
-			break;
-		}
-	}
-}
-
-static Bool _srv_timer_proc(int fd)
-{
-	/*
-		receive(plaintext):
-			+----------+-------+--------+-------+------+----------------+
-			|  opcode  |  len  |  type  |  sec  |  ms  |  callback fun  |
-			+----------+-------+--------+-------+------+----------------+
-			|    1B    |   2B  |   1B   |   2B  |  2B  |       8B       |
-			+----------+-------+--------+-------+------+----------------+
-			opcode:
-				   1
-			type:
-				 1 -- New timer request
-				 	  will be fail if 'callback fun' existed
-				 2 -- Cancel timer
-				 	  judge by 'callback fun'
-				 3 -- Destroy the timer-sys
-				 	  before exit the app
-			sec:
-				max 28800, 8h
-				min 0
-			ms:
-				max 1000, 1s
-				min 10, 10ms
-
-		reply:
-			none
-	 * */
-#define SZ 16
-#define ERR(msg) \
-	CLOGE("msg from srv-node failed cause %s", msg)
-
-	uint8_t buf[SZ] = {0};
-	if(read(fd, buf, SZ) != SZ)
-	{
-		ERR("unexpected rlen");
-		return false;
-	}
-
-	int idx = 0;
-	if(buf[idx++] != 1)
-	{
-		ERR("mismatch opcode");
-		return false;
-	}
-
-	const int len = (buf[idx] << 8) | buf[idx + 1];
-	idx += 2;
-	if(len != 13)
-	{
-		ERR("unexpected len");
-		return false;
-	}
-
-	const int type = buf[idx++];
-	switch(type)
-	{
-		case 1: {
-			const uint16_t sec = (buf[idx] << 8) | buf[idx + 1];
-			const uint16_t ms = (buf[idx + 2] << 8) | buf[idx + 3];
-			idx += 4;
-			void *cb_fun = (void *) (buf + idx);
-			_new_timer(sec, ms, cb_fun);
-		} break;
-		case 2: {
-			idx += 4;
-			void *cb_fun = (void *) (buf + idx);
-			_rm_timer(cb_fun);
-		} break;
-		case 3:
-			CLOGW("Destroying the timer-sys");
-			return true;
-		default:
-			ERR("unsupported type");
-			return false;
-	}
-
-#undef ERR
-#undef SZ
-	return false;
-}
-
-static void _cli_timer_proc(int fd)
-{
-
-}
-
-static void * _timer_thread(void *data)
-{
-	TRACE();
-	struct epoll_event *ev_buf = (struct epoll_event *) MALLOC(10 * sizeof(struct epoll_event));
-
-	int i;
-	while(true)
-	{
-		const int nrs = epoll_wait(epofd, ev_buf, 10, -1);
-		if(nrs < 0)
-		{
-			CLOGE("wait the epoll failed, err: %d", errno);
-			break;
-		}
-
-		for(i = 0; i < nrs; i++)
-		{
-			const int fd = (ev_buf + i)->data.fd;
-			Timer *tmr;
-			list_for_each_entry(tmr, &g_li_sock, list)
-			{
-				if(tmr->fd == fd)
-				{
-					if(tmr->srv)
-					{
-						if(_srv_timer_proc(fd)) goto TMROUT1722;
-					}
-					else _cli_timer_proc(fd);
-				}
-			}
-		}
-	}
-TMROUT1722:
-	CLOGW("out of timer thread");
-	const int cnt = list_size(&g_li_sock);
-	for(i = 0; i < cnt; i++)
-	{
-		Timer *tmr;
-		list_for_each_entry(tmr, &g_li_sock, list)
-		{
-			CLOGD("destroying %d", tmr->fd);
-			_epoll_del(tmr->fd);
-			list_del(&tmr->list);
-			FREE(tmr);
-			break;
-		}
-	}
-	FREE(ev_buf);
-
-	return NULL;
+	return SUCC;
 }
 

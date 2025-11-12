@@ -343,6 +343,8 @@ static void test_timer()
 {
 	TRACE();
 	// 1.
+	
+	SLEEP(10);
 
 	DONE;
 }
