@@ -7,7 +7,7 @@ struct CLEvent {
 	uint16_t no;
 	void *data;
 	cl_evt_free free_fun;
-	LIST_HEAD list;
+	CLIST list;
 };
 
 typedef Bool (*cl_evt_cb)(uint16_t evt_no, void *data);

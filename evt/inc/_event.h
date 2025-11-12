@@ -4,7 +4,7 @@
 typedef struct {
 	uint16_t no;
 	cl_evt_cb cb;
-	LIST_HEAD list;
+	CLIST list;
 } CL_EVT_LSNR;
 
 Ret cl_evt_init();

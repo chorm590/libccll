@@ -15,6 +15,15 @@ typedef enum {
 	SUCC
 } Ret;
 
+#define LOG_INIT_FAIL(module) \
+	CLOGE("init the " #module " failed, err: %d", errno)
+
+#define LOG_LOCK_FAIL(module) \
+	CLOGE("lock for the " #module " failed, err: %d", errno)
+
+#define LOG_UNLOCK_FAIL(module) \
+	CLOGE("unlock for the " #module " failed, err: %d", errno)
+
 #define container_of(ptr, type, member) ({ \
 		const typeof(((type *) 0)->member) *__mptr = (ptr); \
 		(type *) ((char *) __mptr - offsetof(type, member)); \

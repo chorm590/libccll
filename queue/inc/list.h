@@ -1,22 +1,22 @@
 #ifndef __CL_LIST_H__
 #define __CL_LIST_H__
 
-typedef struct list_head LIST_HEAD;
-struct list_head {
-	LIST_HEAD *next, *prev;
+typedef struct cl_list CLIST;
+struct cl_list {
+	CLIST *next, *prev;
 };
 
 #define CRE_LIST_HEAD(name) \
-	LIST_HEAD name = { &(name), &(name) }
+	CLIST name = { &(name), &(name) }
 
-static inline void init_list_head(LIST_HEAD *list)
+static inline void init_list_node(CLIST *list)
 {
 	if(list == NULL) return;
 	list->prev = list;
 	list->next = list;
 }
 
-static inline void __list_add(LIST_HEAD *prev, LIST_HEAD *new, LIST_HEAD *next)
+static inline void __list_add(CLIST *prev, CLIST *new, CLIST *next)
 {
 	if(prev == NULL || new == NULL || next == NULL) return;
 	prev->next = new;
@@ -25,17 +25,17 @@ static inline void __list_add(LIST_HEAD *prev, LIST_HEAD *new, LIST_HEAD *next)
 	next->prev = new;
 }
 
-static inline void list_add_head(LIST_HEAD *new, LIST_HEAD *head)
+static inline void list_add_head(CLIST *new, CLIST *head)
 {
 	__list_add(head, new, head->next);
 }
 
-static inline void list_add(LIST_HEAD *new, LIST_HEAD *head)
+static inline void list_add(CLIST *new, CLIST *head)
 {
 	__list_add(head->prev, new, head);
 }
 
-static inline void list_del(LIST_HEAD *node)
+static inline void list_del(CLIST *node)
 {
 	if(node == NULL) return;
 	node->prev->next = node->next;
@@ -44,22 +44,22 @@ static inline void list_del(LIST_HEAD *node)
 	node->next = NULL;
 }
 
-static inline Bool list_empty(LIST_HEAD *head)
+static inline Bool list_empty(CLIST *head)
 {
 	if(head == NULL) return true;
 	return head->prev == head;
 }
 
-static inline size_t list_size(LIST_HEAD *head)
+static inline size_t list_size(CLIST *head)
 {
 	if(head == NULL) return -1;
 	size_t cnt = 0;
-	LIST_HEAD *a = head;
+	CLIST *a = head;
 	int i = 0;
 	while(true)
 	{
 		i++;
-		LIST_HEAD *b = a->next;
+		CLIST *b = a->next;
 		if(b == NULL || head == b) break;
 		cnt++;
 		a = b;

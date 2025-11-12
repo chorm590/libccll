@@ -16,6 +16,9 @@ TAG = "test";
 
 #define DONE CLOGI("\e[32m%s\e[0m done", __FUNCTION__)
 
+/******************************************
+ **             common begin             **
+ *****************************************/
 static void test_alloc()
 {
 	char *buf1 = MALLOC(32);
@@ -30,13 +33,16 @@ static void test_common()
 	test_alloc();
 }
 
+/******************************************
+ **              queue begin             **
+ *****************************************/
 static void test_list()
 {
 	typedef struct {
 		int id;
 		char name[16];
 		int age;
-		LIST_HEAD list;
+		CLIST list;
 	} Employee;
 
 	CRE_LIST_HEAD(emps);
@@ -53,7 +59,7 @@ static void test_list()
 		emp->id = i;
 		sprintf(emp->name, "employee%03d", i);
 		emp->age = i << 2;
-		init_list_head(&emp->list);
+		init_list_node(&emp->list);
 
 		list_add(&emp->list, &emps);
 		assert(list_empty(&emps) == false);
@@ -61,10 +67,10 @@ static void test_list()
 	// Check the size of list
 	assert(list_size(&emps) == S);
 	// Check the value
-	LIST_HEAD *node = &emps;
+	CLIST *node = &emps;
 	for(i = 0; i < S; i++)
 	{
-		LIST_HEAD *a = node->next;
+		CLIST *a = node->next;
 		assert(a != NULL);
 		Employee *b = container_of(a, Employee, list);
 		assert(b != NULL);
@@ -78,7 +84,7 @@ static void test_list()
 	node = &emps;
 	for(i = 0; i < S; i++)
 	{
-		LIST_HEAD *a = node->next;
+		CLIST *a = node->next;
 		assert(a != NULL);
 		Employee *b = container_of(a, Employee, list);
 		assert(b != NULL);
@@ -91,14 +97,14 @@ static void test_list()
 	DONE;
 }
 
-/******************************************
- **              queue begin             **
- *****************************************/
 static void test_queue()
 {
 	test_list();
 }
 
+/******************************************
+ **              event begin             **
+ *****************************************/
 typedef struct {
 	char txt[18];
 	int no;
@@ -313,7 +319,7 @@ static void test_event()
 	assert(cl_evt_sub(21, _tst_evt_cb21) == 0);
 	assert(cl_evt_sub(21, _tst_evt_cb22) == 0);
 	dat1 = (TST_EVT_DAT1 *) MALLOC(sizeof(TST_EVT_DAT1));
-	sprintf(dat1->txt, "evt-21-,,,");
+	sprintf(dat1->txt, "evt-21-===");
 	dat1->no = 21;
 	assert(cl_evt_pub(21, (void *) dat1, _tst_evt_dat1_free_fun) == SUCC);
 	SLEEP(1);
@@ -330,11 +336,28 @@ static void test_event()
 	DONE;
 }
 
+/******************************************
+ **              timer begin             **
+ ******************************************/
+static void test_timer()
+{
+	TRACE();
+	// 1.
+
+	DONE;
+}
+
+
+
+/******************************************
+ **             testing menu             **
+ ******************************************/
 static void test()
 {
 	//test_common();
 	//test_queue();
-	test_event();
+	//test_event();
+	test_timer();
 }
 
 int main()

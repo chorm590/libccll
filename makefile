@@ -14,6 +14,7 @@ AR := $(CROSS_COMPILE)ar
 SRCS := comm/alloc.c \
 		evt/event.c \
 		log/log.c \
+		sys/timer.c \
 		main.c
 
 OBJS := $(SRCS:.c=.o)

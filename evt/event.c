@@ -204,6 +204,7 @@ static void * _evt_thread(void *data)
 		// 1. wait the signal
 		sem_wait(&l_sm_evt);
 		CLOGD("new evt");
+
 		if(pthread_mutex_lock(&l_mtx_evt))
 		{
 			CLOGE("lock the evt-thrd failed, err: %d", errno);

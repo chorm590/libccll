@@ -10,6 +10,8 @@
 #include "list.h"
 #include "event.h"
 #include "_event.h"
+#include "_timer.h"
+#include "timer.h"
 
 TAG = "main";
 
@@ -22,6 +24,9 @@ print_fun s_prtfun;
 		fprintf(stderr, "init " #what " failed\n"); \
 		return FAIL; \
 	}
+
+#define DEINIT(what) \
+	cl_##what##_deinit();
 
 
 Ret cl_init(print_fun pfun)
@@ -37,6 +42,7 @@ Ret cl_init(print_fun pfun)
 	INIT(log);
 	INIT(alloc);
 	INIT(evt);
+	INIT(timer);
 
 	s_prtfun = pfun;
 	s_init = true;
@@ -48,6 +54,8 @@ void cl_deinit()
 {
 	s_init = false;
 	s_prtfun = NULL;
+	DEINIT(log);
+	// TODO
 	printf("libccll de-initialized\n");
 }
 

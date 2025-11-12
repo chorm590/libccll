@@ -20,7 +20,7 @@ typedef struct {
 	time_t tick;
 	void *addr;
 	size_t size; // On bytes
-	LIST_HEAD list;
+	CLIST list;
 } Obj;
 static const size_t obj_sz = sizeof(Obj);
 
