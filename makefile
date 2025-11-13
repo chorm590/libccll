@@ -15,6 +15,7 @@ SRCS := comm/alloc.c \
 		evt/event.c \
 		log/log.c \
 		sys/timer.c \
+		sys/sh.c \
 		main.c
 
 OBJS := $(SRCS:.c=.o)

@@ -659,7 +659,7 @@ int cl_timer_count()
 	if(pthread_mutex_lock(&g_mtx_sock))
 	{
 		LOG_LOCK_FAIL(timeout proc);
-		return;
+		return -1;
 	}
 
 	const int cnt = list_size(&g_li_sock);

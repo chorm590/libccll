@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "cl_def.h"
 #include "cl_ccll.h"
@@ -12,6 +14,7 @@
 #include "cl_event.h"
 #include "cl_wait.h"
 #include "cl_timer.h"
+#include "cl_sh.h"
 
 TAG = "test";
 
@@ -20,6 +23,8 @@ TAG = "test";
 	printf("\e[36m"); \
 	printf(fmt, ##args); \
 	printf("\e[0m\n")
+#define LTRACE() \
+	LOG("__ %s", __FUNCTION__)
 
 /******************************************
  **             common begin             **
@@ -127,7 +132,7 @@ typedef struct {
 
 static void _tst_evt_dat1_free_fun(void *data)
 {
-	TRACE();
+	LTRACE();
 	if(data == NULL) return;
 
 	TST_EVT_DAT1 *dat1 = (TST_EVT_DAT1 *) data;
@@ -137,7 +142,7 @@ static void _tst_evt_dat1_free_fun(void *data)
 
 static void _tst_evt_dat2_free_fun(void *data)
 {
-	TRACE();
+	LTRACE();
 	if(data == NULL) return;
 
 	TST_EVT_DAT2 *dat2 = (TST_EVT_DAT2 *) data;
@@ -148,7 +153,7 @@ static void _tst_evt_dat2_free_fun(void *data)
 
 static void _tst_evt_dat3_free_fun(void *data)
 {
-	TRACE();
+	LTRACE();
 	if(data == NULL) return;
 
 	TST_EVT_DAT3 *dat3 = (TST_EVT_DAT3 *) data;
@@ -158,7 +163,7 @@ static void _tst_evt_dat3_free_fun(void *data)
 
 static Bool _tst_evt_cb1(uint16_t evt_no, void *data)
 {
-	TRACE();
+	LTRACE();
 	LOG("evt-no: %d", evt_no);
 	TST_EVT_DAT1 *dat1 = (TST_EVT_DAT1 *) data;
 	LOG("txt: %s, no: %d", dat1->txt, dat1->no);
@@ -168,7 +173,7 @@ static Bool _tst_evt_cb1(uint16_t evt_no, void *data)
 
 static Bool _tst_evt_cb2(uint16_t evt_no, void *data)
 {
-	TRACE();
+	LTRACE();
 	LOG("evt-no: %d", evt_no);
 	TST_EVT_DAT2 *dat2 = (TST_EVT_DAT2 *) data;
 	TST_EVT_DAT1 *dat1 = dat2->dat1;
@@ -179,7 +184,7 @@ static Bool _tst_evt_cb2(uint16_t evt_no, void *data)
 
 static Bool _tst_evt_cb3(uint16_t evt_no, void *data)
 {
-	TRACE();
+	LTRACE();
 	LOG("evt-no: %d", evt_no);
 	TST_EVT_DAT3 *dat3 = (TST_EVT_DAT3 *) data;
 	LOG("a: %s, no: %d", dat3->a, dat3->no);
@@ -189,32 +194,32 @@ static Bool _tst_evt_cb3(uint16_t evt_no, void *data)
 
 static Bool _tst_evt_cb20(uint16_t evt_no, void *data)
 {
-	TRACE();
+	LTRACE();
 	return _tst_evt_cb1(evt_no, data);
 }
 
 static Bool _tst_evt_cb21(uint16_t evt_no, void *data)
 {
-	TRACE();
+	LTRACE();
 	return _tst_evt_cb1(evt_no, data);
 }
 
 static Bool _tst_evt_cb22(uint16_t evt_no, void *data)
 {
-	TRACE();
+	LTRACE();
 	return _tst_evt_cb1(evt_no, data);
 }
 
 static Bool _tst_evt_cb23(uint16_t evt_no, void *data)
 {
-	TRACE();
+	LTRACE();
 	_tst_evt_cb1(evt_no, data);
 	return true;
 }
 
 static void test_event()
 {
-	TRACE();
+	LTRACE();
 
 	// 1. Just publish
 	LOG("\n\ncase 1");
@@ -365,7 +370,7 @@ static void _tmr_cb3()
 
 static void test_timer()
 {
-	TRACE();
+	LTRACE();
 	LOG("1. Set a 50ms timer in once");
 	CLOGI("-----> tick 1");
 	g_tmr_sym = 0;
@@ -470,6 +475,64 @@ static void test_timer()
 	DONE;
 }
 
+/******************************************
+ **              testing sh              **
+ ******************************************/
+static void test_sh()
+{
+	LTRACE();
+
+	int rlen;
+
+	{
+		LOG("1. No returning cmd");
+#define FN1 "77564311009888"
+		remove(FN1);
+		assert(cl_sh_exec("touch " FN1, NULL, 0, NULL) == SUCC);
+		struct stat st;
+		assert(stat(FN1, &st) == 0);
+		assert((st.st_mode & S_IFMT) == S_IFREG);
+		assert(remove(FN1) == 0);
+#undef FN1
+	}
+
+	{
+		LOG("2. ");
+		char result[4096] = {0};
+		assert(cl_sh_exec("ls", result, 4096, &rlen) == SUCC);
+		LOG("rlen: %d", rlen);
+		LOG("result:\n%s\n", result);
+		assert(rlen == strlen(result));
+		assert(strlen(result) < 4096);
+	}
+
+	{
+		LOG("3. ");
+		char result[4] = {0};
+		assert(cl_sh_exec("ls", result, 4, &rlen) == SUCC);
+		LOG("rlen: %d", rlen);
+		LOG("result:\n%s\n", result);
+		assert(rlen == 3);
+		assert(strlen(result) == 3);
+	}
+
+	LOG("4. invalid cmd");
+	assert(cl_sh_exec("invalid-cmd", NULL, 0, NULL) == FAIL);
+
+	LOG("5. ");
+	char result[8] = {0};
+	assert(cl_sh_exec("ls", result, 0, NULL) == SUCC);
+	LOG("result:\n%s\n", result);
+	assert(strlen(result) == 0);
+	memset(result, 0, 8);
+	assert(cl_sh_exec("ls", result, 8, NULL) == SUCC);
+	LOG("result:\n%s\n", result);
+	assert(strlen(result) == 7);
+	assert(cl_sh_exec("ls", NULL, 8, NULL) == SUCC);
+	assert(cl_sh_exec("ls", NULL, 0, NULL) == SUCC);
+
+	DONE;
+}
 
 
 /******************************************
@@ -481,6 +544,7 @@ static void test()
 	//test_queue();
 	//test_event();
 	//test_timer();
+	//test_sh();
 }
 
 int main()

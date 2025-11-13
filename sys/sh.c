@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/wait.h>
@@ -6,78 +7,82 @@
 #include "def.h"
 #include "_def.h"
 #include "sh.h"
-#include "_sh.h"
+#include "log.h"
+#include "alloc.h"
 
-static void _read_out(FILE* pf)
+TAG = "sh";
+
+
+static void _read_all_out(FILE* pf)
 {
-	int cnt;
-	int rlen;
+#define SH_READ_OUT_BUF_LEN 2048
 	char buf[SH_READ_OUT_BUF_LEN];
 
 	if(pf == NULL)
 	{
-		usc_log_info("null pf");
+		CLOGE("null pf");
 		return;
 	}
 
-	cnt = SH_READ_OUT_LOOP;
-	while(cnt)
+	int cnt = 10000;
+	while(cnt--)
 	{
-		cnt--;
-		rlen = fread(buf, 1, SH_READ_OUT_BUF_LEN, pf);
-		if(rlen == SH_READ_OUT_BUF_LEN)
-			continue;
-		break;
+		if(fread(buf, 1, SH_READ_OUT_BUF_LEN, pf) < SH_READ_OUT_BUF_LEN)
+			break;
 	}
+#undef SH_READ_OUT_BUF_LEN
 }
 
-Ret usc_sh_exec(const char *cmd, char *result, int size, int *rlen)
+Ret cl_sh_exec(const char *cmd, char *result, int size, int *rlen)
 {
 	if(cmd == NULL || size < 0 || size > 0x100000)
 	{
-		usc_log_error("parameter invalid");
+		CLOGE("parameter invalid");
 		return FAIL;
 	}
 
-	int cmd_len = strlen(cmd);
-	char* cmd2 = (char*)calloc(1, cmd_len + 8);
-	if(cmd2 == NULL)
-	{
-		usc_log_error("memory failed");
-		return FAIL;
-	}
-	sprintf(cmd2, "%s 2>&1", cmd);
+	char *cmd_exe = (char *) MALLOC(strlen(cmd) + 8);
+	sprintf(cmd_exe, "%s 2>&1", cmd);
 
-	FILE* pf = popen(cmd2, "r");
-	free(cmd2);
+	FILE* pf = popen(cmd_exe, "r");
+	FREE(cmd_exe);
 	if(pf == NULL)
 	{
-		usc_log_error("exec cmd failed");
+		CLOGE("cmd exec failed");
 		return FAIL;
 	}
 
-	if(buf == NULL)
+	if(result == NULL)
 	{
-		_read_out(pf);
+		_read_all_out(pf);
 		return WEXITSTATUS(pclose(pf)) ? FAIL : SUCC;
 	}
 
-	int len = fread(buf, 1, blen, pf);
+	const int rsz = size - 1;
+	if(rsz < 0)
+	{
+		_read_all_out(pf);
+		return WEXITSTATUS(pclose(pf)) ? FAIL : SUCC;
+	}
+
+	const int len = fread(result, 1, rsz, pf);
 	if(len < 0)
 	{
-		usc_log_error("read failed");
+		CLOGE("read cmd result failed");
 		return FAIL;
 	}
+	*(result + rsz) = 0;
 
 	if(rlen)
 	{
 		*rlen = len;
 	}
 
-	if(len == blen)
+	if(len == rsz)
 	{
-		_read_out(pf);
+		_read_all_out(pf);
 	}
 
 	return WEXITSTATUS(pclose(pf)) ? FAIL : SUCC;
 }
+
