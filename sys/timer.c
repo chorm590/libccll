@@ -16,6 +16,7 @@
 #include "timer.h"
 #include "list.h"
 #include "alloc.h"
+#include "wait.h"
 
 TAG = "timer";
 
@@ -30,11 +31,13 @@ typedef struct {
 } Timer;
 
 static CRE_LIST_HEAD(g_li_sock);
+static int srvfd = -1;
+static int clifd = -1;
 static int epofd = -1;
 static pthread_mutex_t g_mtx_sock; // To ensure the safety of 'g_li_sock'
 static pthread_t g_thr_socks;
 
-static void * _timer_thread(void *data);
+static void _timer_destroy();
 
 static int _cre_srv_sock()
 {
@@ -45,9 +48,6 @@ static int _cre_srv_sock()
 		CLOGE("create socket failed, err: %d", errno);
 		return -1;
     }
-
-	int flgs = fcntl(srvfd, F_GETFL, 0);
-	fcntl(srvfd, F_SETFL, flgs | O_NONBLOCK);
 
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sun_family = AF_UNIX;
@@ -61,7 +61,7 @@ static int _cre_srv_sock()
 		return -1;
     }
 
-    if (listen(srvfd, 5) == -1) {
+    if (listen(srvfd, 1) == -1) {
 		CLOGE("listen socket failed, err: %d", errno);
         close(srvfd);
 		return -1;
@@ -94,23 +94,29 @@ static Timer * _cre_node(int fd, cl_timer_cb cb)
 	return node;
 }
 
-static Ret _cre_srv_node(int srvfd)
+static int _conn_srv()
 {
-	Timer *tmr;
-	list_for_each_entry(tmr, &g_li_sock, list)
+	struct sockaddr_un srv_addr;
+	int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+	if(fd == -1)
 	{
-		if(tmr->srv)
-		{
-			CLOGW("Already have srv-node");
-			return FAIL;
-		}
+		CLOGE("create socket to conn failed, err: %d", errno);
+		return -1;
 	}
 
-	Timer *srv_node = _cre_node(srvfd, NULL);
-	srv_node->srv = true;
-	list_add(&srv_node->list, &g_li_sock);
+	memset(&srv_addr, 0, sizeof(struct sockaddr_un));
+	srv_addr.sun_family = AF_UNIX;
+	strcpy(srv_addr.sun_path, SRV_SKT_PATH);
 
-	return SUCC;
+	SLEEP_MS(100);
+	if(connect(fd, (struct sockaddr *) &srv_addr, sizeof(srv_addr)))
+	{
+		CLOGE("connect to timer-sys failed, err: %d", errno);
+		close(fd);
+		return -1;
+	}
+
+	return fd;
 }
 
 static Ret _epoll_add(int fd)
@@ -184,7 +190,7 @@ static Ret _cre_cli_node(const int sec, const int ms, const uint32_t repeats, cl
 	return SUCC;
 }
 
-static void _new_timer(const int sec, const int ms, const uint32_t repeats, const cl_timer_cb cb)
+static void _add_timer(const int sec, const int ms, const uint32_t repeats, const cl_timer_cb cb)
 {
 	TRACE();
 	if(pthread_mutex_lock(&g_mtx_sock))
@@ -217,7 +223,7 @@ static void _new_timer(const int sec, const int ms, const uint32_t repeats, cons
 		CLOGE("cre timer node failed");
 		goto UNLOCK5534;
 	}
-	CLOGI("new timer on, %dS %dMS", sec, ms);
+	CLOGI("new timer on, %ds %dms", sec, ms);
 
 UNLOCK5534:
 	if(pthread_mutex_unlock(&g_mtx_sock))
@@ -237,9 +243,10 @@ static void _cancel_timerfd(int fd)
 	close(fd);
 }
 
-static void _rm_timer(const cl_timer_cb cb)
+static void _rmv_timer(const cl_timer_cb cb)
 {
 	TRACE();
+
 	if(pthread_mutex_lock(&g_mtx_sock))
 	{
 		LOG_LOCK_FAIL(remove timer);
@@ -257,10 +264,17 @@ static void _rm_timer(const cl_timer_cb cb)
 			_cancel_timerfd(tmr->fd);
 			// Dequeue from list
 			list_del(&tmr->list);
+			close(tmr->fd);
 			FREE(tmr);
 			CLOGI("timer canceled");
 			break;
 		}
+	}
+
+	if(pthread_mutex_unlock(&g_mtx_sock))
+	{
+		LOG_UNLOCK_FAIL(remove timer);
+		exit(-1);
 	}
 }
 
@@ -302,12 +316,13 @@ static Bool _srv_timer_proc(int fd)
 	 * */
 #define SZ 20
 #define ERR(msg) \
-	CLOGE("msg from srv-node failed cause %s", msg)
+	CLOGE("srv-node fail cause %s, err: %s", msg, strerror(errno))
 
 	uint8_t buf[SZ] = {0};
 	if(read(fd, buf, SZ) != SZ)
 	{
 		ERR("unexpected rlen");
+		exit(1);
 		return false;
 	}
 
@@ -319,16 +334,14 @@ static Bool _srv_timer_proc(int fd)
 	}
 
 	const int len = *((uint16_t *) (buf + idx));
-	CLOGD("len: %d", len);
 	idx += 2;
-	if(len != 13)
+	if(len != 17)
 	{
 		ERR("unexpected len");
 		return false;
 	}
 
 	const int type = buf[idx++];
-	CLOGD("type: %d", type);
 	switch(type)
 	{
 		case 1: {
@@ -338,15 +351,15 @@ static Bool _srv_timer_proc(int fd)
 			idx += 2;
 			const uint32_t rpe = *((uint32_t *) (buf + idx));
 			idx += 4;
-			void *cb_fun = (void *) (buf + idx);
-			CLOGD("sec: %d, ms: %d, rpe: %d, cb_fun: %p", sec, ms, rpe, cb_fun);
-			_new_timer(sec, ms, rpe, cb_fun);
+			cl_timer_cb cb_fun;
+			memcpy(&cb_fun, buf + idx, 8);
+			_add_timer(sec, ms, rpe, (cl_timer_cb) cb_fun);
 		} break;
 		case 2: {
 			idx += 8;
-			void *cb_fun = (void *) (buf + idx);
-			CLOGD("cb_fun: %p", cb_fun);
-			_rm_timer(cb_fun);
+			cl_timer_cb cb_fun;
+			memcpy(&cb_fun, buf + idx, 8);
+			_rmv_timer(cb_fun);
 		} break;
 		case 3:
 			CLOGW("Destroying the timer-sys");
@@ -363,7 +376,7 @@ static Bool _srv_timer_proc(int fd)
 
 static void _cli_timer_proc(int fd)
 {
-	CLOGD("timeout for %d", fd);
+	CLOGD("timer out: %d", fd);
 	uint64_t val;
 	static size_t sz = sizeof(uint64_t);
 	if(read(fd, &val, sz) != sz)
@@ -402,10 +415,70 @@ static void _cli_timer_proc(int fd)
 	}
 }
 
+static Ret _cre_srv_node(int fd)
+{
+	Timer *tmr;
+	list_for_each_entry(tmr, &g_li_sock, list)
+	{
+		if(tmr->srv)
+		{
+			CLOGW("Already have srv-node");
+			return FAIL;
+		}
+	}
+
+	Timer *srv_node = _cre_node(fd, NULL);
+	srv_node->srv = true;
+	list_add(&srv_node->list, &g_li_sock);
+
+	return SUCC;
+}
+
+static void _wait_self_connect()
+{
+	int fd = accept(srvfd, NULL, NULL);
+
+	if(pthread_mutex_lock(&g_mtx_sock))
+	{
+		LOG_LOCK_FAIL(sock);
+		exit(-1);
+	}
+
+	if(_cre_srv_node(fd) != SUCC)
+	{
+		CLOGE("create srv node failed");
+		exit(-1);
+	}
+
+	if(pthread_mutex_unlock(&g_mtx_sock))
+	{
+		LOG_UNLOCK_FAIL(sock);
+		exit(-1);
+	}
+
+	if(_epoll_add(fd))
+	{
+		CLOGE("add srv-node to epoll failed");
+		exit(-1);
+	}
+
+	// Set to non-blocking
+	int flags = fcntl(fd, F_GETFL, 0);
+	if(flags == -1)
+	{
+		CLOGE("get flags of fd failed, err: %d", errno);
+		exit(-1);
+	}
+	fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+}
+
 static void * _timer_thread(void *data)
 {
 	TRACE();
 	struct epoll_event *ev_buf = (struct epoll_event *) MALLOC(10 * sizeof(struct epoll_event));
+
+	_wait_self_connect();
+	CLOGD("timer-sys is ready!");
 
 	int i;
 	while(true)
@@ -430,11 +503,16 @@ static void * _timer_thread(void *data)
 					{
 						if(_srv_timer_proc(fd)) goto TMROUT1722;
 					}
-					else _cli_timer_proc(fd);
+					else
+					{
+						_cli_timer_proc(fd);
+						break;
+					}
 				}
 			}
 		}
 	}
+
 TMROUT1722:
 	CLOGW("out of timer thread");
 	const int cnt = list_size(&g_li_sock);
@@ -443,9 +521,10 @@ TMROUT1722:
 		Timer *tmr;
 		list_for_each_entry(tmr, &g_li_sock, list)
 		{
-			CLOGD("destroying %d", tmr->fd);
+			CLOGD("destroying fd: %d", tmr->fd);
 			_epoll_del(tmr->fd);
 			list_del(&tmr->list);
+			close(tmr->fd);
 			FREE(tmr);
 			break;
 		}
@@ -465,68 +544,40 @@ Ret cl_timer_init()
 		return FAIL;
 	}
 
-	int sock = _cre_srv_sock();
-	if(sock == -1)
+	srvfd = _cre_srv_sock();
+	if(srvfd == -1)
 	{
 		CLOGE("create srv sock failed");
 		return FAIL;
 	}
 
-	int epoll = _cre_epoll();
-	if(epoll == -1)
+	epofd = _cre_epoll();
+	if(epofd == -1)
 	{
-		close(sock);
+		close(srvfd);
+		srvfd = -1;
 		CLOGE("create epoll failed");
-		return FAIL;
-	}
-
-	if(pthread_mutex_lock(&g_mtx_sock))
-	{
-		close(sock);
-		close(epoll);
-		LOG_LOCK_FAIL(sock);
-		return FAIL;
-	}
-
-	if(_cre_srv_node(sock) != SUCC)
-	{
-		close(sock);
-		close(epoll);
-		CLOGE("create srv node failed");
-		return FAIL;
-	}
-
-	if(pthread_mutex_unlock(&g_mtx_sock))
-	{
-		close(sock);
-		close(epoll);
-		Timer *srv_node = container_of(g_li_sock.next, Timer, list);
-		FREE(srv_node);
-		LOG_UNLOCK_FAIL(sock);
-		exit(-1);
-	}
-
-	epofd = epoll;
-
-	if(_epoll_add(sock))
-	{
-		CLOGE("add srv-node to epoll failed");
-		close(sock);
-		close(epoll);
-		epofd = -1;
-		Timer *srv_node = container_of(g_li_sock.next, Timer, list);
-		FREE(srv_node);
 		return FAIL;
 	}
 
 	if(pthread_create(&g_thr_socks, NULL, _timer_thread, NULL))
 	{
 		CLOGE("create sub-thread failed, err: %d", errno);
-		close(sock);
-		close(epoll);
+		close(srvfd);
+		close(epofd);
+		srvfd = -1;
 		epofd = -1;
-		Timer *srv_node = container_of(g_li_sock.next, Timer, list);
-		FREE(srv_node);
+		return FAIL;
+	}
+
+	clifd = _conn_srv();
+	if(clifd == -1)
+	{
+		CLOGE("connect to timer-sys failed");
+		close(srvfd);
+		close(epofd);
+		srvfd = -1;
+		epofd = -1;
 		return FAIL;
 	}
 
@@ -536,20 +587,89 @@ Ret cl_timer_init()
 void cl_timer_deinit()
 {
 	TRACE();
+	_timer_destroy();
 	pthread_mutex_destroy(&g_mtx_sock);
 	// TODO write srv-node to request deinit
 	pthread_join(g_thr_socks, NULL);
+    unlink(SRV_SKT_PATH);
+	CLOGD("timer deinitialized");
+}
+
+#define SZ 20
+static void _load_srv_buf(const int type, const int sec, const int ms, const uint32_t rpe, const cl_timer_cb cb, uint8_t *buf)
+{
+	int idx = 0;
+	buf[idx++] = 1;
+	*((uint16_t *) (buf + idx)) = (1 + 2 + 2 + 4 + 8);
+	idx += 2;
+	buf[idx++] = type;
+	*((uint16_t *) (buf + idx)) = (uint16_t) sec;
+	idx += 2;
+	*((uint16_t *) (buf + idx)) = (uint16_t) ms;
+	idx += 2;
+	*((uint32_t *) (buf + idx)) = rpe;
+	idx += 4;
+	*((uint64_t *) (buf + idx)) = (uint64_t) cb;
+}
+
+static void _timer_destroy()
+{
+	TRACE();
+	uint8_t buf[SZ];
+	_load_srv_buf(3, 0, 0, 0, NULL, buf);
+	if(write(clifd, buf, SZ) != SZ)
+	{
+		CLOGE("destroy timer failed, err: %d", errno);
+	}
 }
 
 Ret cl_timer_set(const uint16_t sec, const uint16_t ms, const int repeats, cl_timer_cb cb)
 {
 	TRACE();
+	uint8_t buf[SZ];
+	_load_srv_buf(1, sec, ms, repeats, cb, buf);
+	if(write(clifd, buf, SZ) != SZ)
+	{
+		CLOGE("set timer failed, err: %d", errno);
+		return FAIL;
+	}
+
 	return SUCC;
 }
 
 Ret cl_timer_cancel(cl_timer_cb cb)
 {
 	TRACE();
+	uint8_t buf[SZ];
+	_load_srv_buf(2, 0, 0, 0, cb, buf);
+	if(write(clifd, buf, SZ) != SZ)
+	{
+		CLOGE("cancel the timer failed, err: %d", errno);
+		return FAIL;
+	}
+
 	return SUCC;
+}
+#undef SZ
+
+int cl_timer_count()
+{
+	TRACE();
+
+	if(pthread_mutex_lock(&g_mtx_sock))
+	{
+		LOG_LOCK_FAIL(timeout proc);
+		return;
+	}
+
+	const int cnt = list_size(&g_li_sock);
+
+	if(pthread_mutex_unlock(&g_mtx_sock))
+	{
+		LOG_UNLOCK_FAIL(timeout proc);
+		exit(-1);
+	}
+
+	return cnt - 1;
 }
 

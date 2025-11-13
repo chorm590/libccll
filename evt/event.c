@@ -233,7 +233,7 @@ static void * _evt_thread(void *data)
 			{
 				if(lsnr->no == evt->no && lsnr->cb(evt->no, evt->data))
 				{
-					CLOGI("evt %d was consumed", lsnr->no);
+					CLOGI("evt %d consumed", lsnr->no);
 					break;
 				}
 			}
@@ -247,7 +247,8 @@ static void * _evt_thread(void *data)
 			FREE(evt);
 		}
 	}
-	CLOGE("Fatal err: out of the evt-thrd");
+	CLOGE("Out of the evt-thrd");
 
 	return NULL;
 }
+

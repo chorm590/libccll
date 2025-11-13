@@ -11,10 +11,15 @@
 #include "cl_list.h"
 #include "cl_event.h"
 #include "cl_wait.h"
+#include "cl_timer.h"
 
 TAG = "test";
 
-#define DONE CLOGI("\e[32m%s\e[0m done", __FUNCTION__)
+#define DONE printf("\e[32m%s\e[0m done\n", __FUNCTION__)
+#define LOG(fmt, args...) \
+	printf("\e[36m"); \
+	printf(fmt, ##args); \
+	printf("\e[0m\n")
 
 /******************************************
  **             common begin             **
@@ -22,7 +27,7 @@ TAG = "test";
 static void test_alloc()
 {
 	char *buf1 = MALLOC(32);
-	printf("addr of buf1: %p\n", buf1);
+	LOG("addr of buf1: %p", buf1);
 	cl_iter_objs();
 	FREE(buf1);
 	cl_iter_objs();
@@ -126,7 +131,7 @@ static void _tst_evt_dat1_free_fun(void *data)
 	if(data == NULL) return;
 
 	TST_EVT_DAT1 *dat1 = (TST_EVT_DAT1 *) data;
-	CLOGD("freeing1 no: %d", dat1->no);
+	LOG("freeing1 no: %d", dat1->no);
 	FREE(dat1);
 }
 
@@ -137,7 +142,7 @@ static void _tst_evt_dat2_free_fun(void *data)
 
 	TST_EVT_DAT2 *dat2 = (TST_EVT_DAT2 *) data;
 	_tst_evt_dat1_free_fun(dat2->dat1);
-	CLOGD("freeing2 no: %d", dat2->no);
+	LOG("freeing2 no: %d", dat2->no);
 	FREE(dat2);
 }
 
@@ -147,16 +152,16 @@ static void _tst_evt_dat3_free_fun(void *data)
 	if(data == NULL) return;
 
 	TST_EVT_DAT3 *dat3 = (TST_EVT_DAT3 *) data;
-	CLOGD("freeing3 no: %d", dat3->no);
+	LOG("freeing3 no: %d", dat3->no);
 	FREE(dat3);
 }
 
 static Bool _tst_evt_cb1(uint16_t evt_no, void *data)
 {
 	TRACE();
-	CLOGI("evt-no: %d", evt_no);
+	LOG("evt-no: %d", evt_no);
 	TST_EVT_DAT1 *dat1 = (TST_EVT_DAT1 *) data;
-	CLOGI("txt: %s, no: %d", dat1->txt, dat1->no);
+	LOG("txt: %s, no: %d", dat1->txt, dat1->no);
 
 	return false;
 }
@@ -164,10 +169,10 @@ static Bool _tst_evt_cb1(uint16_t evt_no, void *data)
 static Bool _tst_evt_cb2(uint16_t evt_no, void *data)
 {
 	TRACE();
-	CLOGI("evt-no: %d", evt_no);
+	LOG("evt-no: %d", evt_no);
 	TST_EVT_DAT2 *dat2 = (TST_EVT_DAT2 *) data;
 	TST_EVT_DAT1 *dat1 = dat2->dat1;
-	CLOGI("txt: %s, no: %d, no2: %d", dat1->txt, dat1->no, dat2->no);
+	LOG("txt: %s, no: %d, no2: %d", dat1->txt, dat1->no, dat2->no);
 
 	return false;
 }
@@ -175,9 +180,9 @@ static Bool _tst_evt_cb2(uint16_t evt_no, void *data)
 static Bool _tst_evt_cb3(uint16_t evt_no, void *data)
 {
 	TRACE();
-	CLOGI("evt-no: %d", evt_no);
+	LOG("evt-no: %d", evt_no);
 	TST_EVT_DAT3 *dat3 = (TST_EVT_DAT3 *) data;
-	CLOGI("a: %s, no: %d", dat3->a, dat3->no);
+	LOG("a: %s, no: %d", dat3->a, dat3->no);
 
 	return false;
 }
@@ -212,57 +217,57 @@ static void test_event()
 	TRACE();
 
 	// 1. Just publish
-	CLOGI("\n\ncase 1");
+	LOG("\n\ncase 1");
 	TST_EVT_DAT1 *dat1 = (TST_EVT_DAT1 *) MALLOC(sizeof(TST_EVT_DAT1));
 	Ret ret = cl_evt_pub(12, (void *) dat1, _tst_evt_dat1_free_fun);
-	CLOGD("ret of pub evt-12: %d", ret);
+	LOG("ret of pub evt-12: %d", ret);
 
 	SLEEP(1);
 
 	// 2. Just publish too
-	CLOGI("\n\ncase 2");
+	LOG("\n\ncase 2");
 	TST_EVT_DAT1 *dat1_2 = (TST_EVT_DAT1 *) MALLOC(sizeof(TST_EVT_DAT1));
 	ret = cl_evt_pub(13, (void *) dat1_2, _tst_evt_dat1_free_fun);
-	CLOGD("ret of pub evt-13: %d", ret);
+	LOG("ret of pub evt-13: %d", ret);
 
 	SLEEP(1);
 
 	// 3. Just publish too too
-	CLOGI("\n\ncase 3");
+	LOG("\n\ncase 3");
 	TST_EVT_DAT2 *dat2 = (TST_EVT_DAT2 *) MALLOC(sizeof(TST_EVT_DAT2));
 	ret = cl_evt_pub(14, (void *) dat2, _tst_evt_dat2_free_fun);
-	CLOGD("ret of pub evt-14: %d", ret);
+	LOG("ret of pub evt-14: %d", ret);
 
 	SLEEP(1);
 
 	// 4. Sub and Pub
-	CLOGI("\n\ncase 4");
+	LOG("\n\ncase 4");
 	ret = cl_evt_sub(15, _tst_evt_cb1);
-	CLOGD("ret of sub evt-15: %d", ret);
+	LOG("ret of sub evt-15: %d", ret);
 	dat1 = (TST_EVT_DAT1 *) MALLOC(sizeof(TST_EVT_DAT1));
 	sprintf(dat1->txt, "Hello guy!");
 	dat1->no = 185;
 	ret = cl_evt_pub(15, (void *) dat1, _tst_evt_dat1_free_fun);
-	CLOGD("ret of pub evt-15: %d", ret);
+	LOG("ret of pub evt-15: %d", ret);
 	SLEEP(1);
 	cl_evt_unsub(15, _tst_evt_cb1);
 
 	SLEEP(1);
 
 	// 5. Single sub and twice publish
-	CLOGI("\n\ncase 5");
+	LOG("\n\ncase 5");
 	ret = cl_evt_sub(16, _tst_evt_cb1);
-	CLOGD("ret of sub evt-16: %d", ret);
+	LOG("ret of sub evt-16: %d", ret);
 	dat1 = (TST_EVT_DAT1 *) MALLOC(sizeof(TST_EVT_DAT1));
 	sprintf(dat1->txt, "Msg 15, body her");
 	dat1->no = 995;
 	ret = cl_evt_pub(15, (void *) dat1, _tst_evt_dat1_free_fun);
-	CLOGD("ret of pub evt-15: %d", ret);
+	LOG("ret of pub evt-15: %d", ret);
 	dat1_2 = (TST_EVT_DAT1 *) MALLOC(sizeof(TST_EVT_DAT1));
 	sprintf(dat1_2->txt, "Msg 16, body her");
 	dat1_2->no = 996;
 	ret = cl_evt_pub(16, (void *) dat1_2, _tst_evt_dat1_free_fun);
-	CLOGD("ret of pub evt-16: %d", ret);
+	LOG("ret of pub evt-16: %d", ret);
 	SLEEP(1);
 	cl_evt_unsub(16, _tst_evt_cb1);
 	dat1_2->txt[3] = 22;
@@ -271,7 +276,7 @@ static void test_event()
 	SLEEP(1);
 
 	// 6. Multiply sub and multiple pub
-	CLOGI("\n\ncase 6");
+	LOG("\n\ncase 6");
 	assert(cl_evt_sub(17, _tst_evt_cb1) == 0);
 	assert(cl_evt_sub(18, _tst_evt_cb2) == 0);
 	assert(cl_evt_sub(19, _tst_evt_cb3) == 0);
@@ -298,7 +303,7 @@ static void test_event()
 	SLEEP(1);
 
 	// 7. Multiple listener
-	CLOGI("\n\ncase 7");
+	LOG("\n\ncase 7");
 	assert(cl_evt_sub(20, _tst_evt_cb20) == 0);
 	assert(cl_evt_sub(20, _tst_evt_cb21) == 0);
 	assert(cl_evt_sub(20, _tst_evt_cb22) == 0);
@@ -314,7 +319,7 @@ static void test_event()
 	SLEEP(1);
 
 	// 8. Intercept event
-	CLOGI("\n\ncase 8");
+	LOG("\n\ncase 8");
 	assert(cl_evt_sub(21, _tst_evt_cb23) == 0);
 	assert(cl_evt_sub(21, _tst_evt_cb21) == 0);
 	assert(cl_evt_sub(21, _tst_evt_cb22) == 0);
@@ -339,12 +344,128 @@ static void test_event()
 /******************************************
  **              timer begin             **
  ******************************************/
+static int g_tmr_sym;
+static void _tmr_cb1()
+{
+	LOG("timer cb1");
+	CLOGI("-----> tick 1-");
+	g_tmr_sym = 1;
+}
+
+static void _tmr_cb2()
+{
+	LOG("timer cb2");
+	g_tmr_sym++;
+}
+
+static void _tmr_cb3()
+{
+	g_tmr_sym++;
+}
+
 static void test_timer()
 {
 	TRACE();
-	// 1.
-	
-	SLEEP(10);
+	LOG("1. Set a 50ms timer in once");
+	CLOGI("-----> tick 1");
+	g_tmr_sym = 0;
+	assert(cl_timer_set(0, 50, 1, _tmr_cb1) == SUCC);
+	SLEEP_MS(55);
+	assert(g_tmr_sym == 1);
+	assert(cl_timer_count() == 0);
+
+	LOG("2. Set a 50ms timer in 10 times");
+	g_tmr_sym = 0;
+	assert(cl_timer_set(0, 50, 10, _tmr_cb2) == SUCC);
+	{
+		int i;
+		for(i = 0; i < 10; i++)
+		{
+			SLEEP_MS(51);
+			assert(g_tmr_sym == (i + 1));
+		}
+	}
+	assert(cl_timer_count() == 0);
+
+	LOG("3. Set a 50ms timer in loop forever");
+#if 1
+	g_tmr_sym = 0;
+	assert(cl_timer_set(0, 50, 0, _tmr_cb3) == SUCC);
+	{
+		int i;
+		int pre;
+		for(i = 0; i < 2000/*100s*/; i++)
+		{
+			pre = g_tmr_sym;
+			SLEEP_MS(55);
+			assert(g_tmr_sym > pre);
+		}
+		LOG("case 3 done");
+	}
+	assert(cl_timer_cancel(_tmr_cb3) == SUCC);
+	{
+		int i, j;
+		for(i = 0; i < 20; i++)
+		{
+			j = g_tmr_sym;
+			SLEEP_MS(55);
+			assert(g_tmr_sym == j);
+		}
+	}
+	assert(cl_timer_count() == 0);
+#else
+	LOG("  skipped");
+#endif
+
+	LOG("4. Set a 10s timer with one time repeat");
+#if 1
+	g_tmr_sym = 0;
+	assert(cl_timer_set(10, 0, 2, _tmr_cb2) == SUCC);
+	SLEEP(11);
+	assert(g_tmr_sym == 1);
+	SLEEP(11);
+	assert(g_tmr_sym == 2);
+	SLEEP(1);
+	assert(cl_timer_count() == 0);
+#else
+	LOG("  skipped");
+#endif
+
+	LOG("5. Set a 10s and 200ms timer with no repeat");
+#if 1
+	g_tmr_sym = 0;
+	assert(cl_timer_set(10, 200, 1, _tmr_cb2) == SUCC);
+	SLEEP(11);
+	assert(g_tmr_sym == 1);
+	SLEEP(1);
+	assert(cl_timer_count() == 0);
+#else
+	LOG("  skipped");
+#endif
+
+	LOG("6. Set two timer in 1s and 3s with no repeat");
+	g_tmr_sym = 0;
+	assert(cl_timer_set(1, 0, 1, _tmr_cb2) == SUCC);
+	assert(cl_timer_set(3, 0, 1, _tmr_cb3) == SUCC);
+	SLEEP(1);
+	SLEEP_MS(200);
+	assert(g_tmr_sym == 1);
+	SLEEP(2);
+	assert(g_tmr_sym == 2);
+	SLEEP_MS(100);
+	assert(cl_timer_count() == 0);
+
+	LOG("7. Set two timer in both 1s with no repeat");
+	g_tmr_sym = 0;
+	assert(cl_timer_set(1, 0, 1, _tmr_cb2) == SUCC);
+	assert(cl_timer_set(1, 0, 1, _tmr_cb3) == SUCC);
+	SLEEP(1);
+	SLEEP_MS(20);
+	assert(g_tmr_sym == 2);
+	SLEEP_MS(50);
+	assert(cl_timer_count() == 0);
+
+	SLEEP(3);
 
 	DONE;
 }
@@ -359,17 +480,17 @@ static void test()
 	//test_common();
 	//test_queue();
 	//test_event();
-	test_timer();
+	//test_timer();
 }
 
 int main()
 {
 	if(cl_init(NULL) != SUCC)
 	{
-		printf("ccll init failed");
+		LOG("ccll init failed");
 		return -1;
 	}
-	CLOGI("libccll init succ");
+	LOG("libccll init succ");
 
 	test();
 

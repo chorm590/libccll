@@ -23,4 +23,6 @@ Ret cl_timer_set(const uint16_t sec, const uint16_t ms, const int repeats, cl_ti
 
 Ret cl_timer_cancel(cl_timer_cb cb);
 
+int cl_timer_count();
+
 #endif

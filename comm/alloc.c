@@ -25,12 +25,6 @@ typedef struct {
 static const size_t obj_sz = sizeof(Obj);
 
 
-Ret cl_alloc_init()
-{
-	// TODO
-	return SUCC;
-}
-
 void * cl_malloc(const char *fun, const int line_no, const char *tag, int size_on_bytes)
 {
 	void *new_mem = malloc(size_on_bytes);

@@ -6,7 +6,6 @@
 #include "ccll.h"
 #include "_log.h"
 #include "log.h"
-#include "_alloc.h"
 #include "list.h"
 #include "event.h"
 #include "_event.h"
@@ -40,7 +39,6 @@ Ret cl_init(print_fun pfun)
 	}
 
 	INIT(log);
-	INIT(alloc);
 	INIT(evt);
 	INIT(timer);
 
@@ -52,10 +50,12 @@ Ret cl_init(print_fun pfun)
 
 void cl_deinit()
 {
+	TRACE();
 	s_init = false;
 	s_prtfun = NULL;
+	DEINIT(timer);
+	DEINIT(evt);
 	DEINIT(log);
-	// TODO
 	printf("libccll de-initialized\n");
 }
 
