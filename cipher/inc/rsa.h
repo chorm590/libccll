@@ -43,4 +43,50 @@ Ret cl_rsa_to_file(RSA *rsa, const char *pub_key_fn, const char *prv_key_fn);
  * */
 Ret cl_rsa_to_bytes(RSA *rsa, uint8_t *pub_key_buf, size_t *pbk_len, uint8_t *prv_key_buf, size_t *pvk_len);
 
+/*
+ * Encrypt 'plain' to 'cipher' with RSA pub-key or prv-key.
+ *
+ * @param rsa [in]
+ *
+ * @param with_pbk [in]
+ * 		  true  -- encrypt with pub-key.
+ * 		  false -- encrypt with prv-key.
+ *
+ * @param plain [in]
+ * 		  Byte stream that wait for encrypt.
+ *
+ * @param plen [in]
+ * 		  The bytes of 'plain'
+ *
+ * @param cipher [out]
+ * 		  Byte stream encrypted.
+ *
+ * @param clen [out]
+ * 		  The bytes of 'cipher'
+ * */
+Ret cl_rsa_enc(RSA *rsa, Bool with_pbk, uint8_t *plain, int plen, uint8_t *cipher, int *clen);
+
+/*
+ * Decrypt 'cipher' to 'plain' with RSA pub-key or prv-key.
+ *
+ * @param rsa [in]
+ *
+ * @param with_pbk [in]
+ * 		  true  -- decrypt with pub-key.
+ * 		  false -- decrypt with prv-key.
+ *
+ * @param cipher [in]
+ * 		  Byte stream that wait for decrypt.
+ *
+ * @param clen [in]
+ * 		  The bytes of 'cipher'
+ *
+ * @param plain [out]
+ * 		  Byte stream decrypted.
+ *
+ * @param plen [out]
+ * 		  The bytes of 'plain'
+ * */
+Ret cl_rsa_dec(RSA *rsa, Bool with_pbk, uint8_t *cipher, int clen, uint8_t *plain, int *plen);
+
 #endif

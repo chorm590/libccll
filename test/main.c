@@ -793,6 +793,44 @@ static void test_rsa()
 	LOG("[3] pbk_len2: %ld, pbk_bf2:\n%s\npvk_len2: %ld, pvk_bf2:\n%s\n", pbk_len2, pbk_bf2, pvk_len2, pvk_bf2);
 	cl_rsa_destroy(rsa);
 
+	LOG("4. encrypt and decrypt");
+	char *words = "This is my testing data for RSA ciphering...";
+	const size_t wd_len = strlen(words);
+	LOG("words len: %ld", wd_len);
+	uint8_t cipher_buf[600];
+	uint8_t plain_buf[100];
+	int plen, clen;
+	memset(cipher_buf, 0, 600);
+	memset(plain_buf, 0, 100);
+	plen = -1;
+	clen = -1;
+	assert(cl_rsa_gen(65537, 2048, &rsa) == SUCC);
+	assert(rsa != NULL);
+	assert(cl_rsa_enc(rsa, true, words, wd_len, cipher_buf, &clen) == SUCC);
+	assert(clen == 256);
+	LOG("clen: %d", clen);
+	assert(cl_rsa_dec(rsa, false, cipher_buf, clen, plain_buf, &plen) == SUCC);
+	assert(plen == wd_len);
+	LOG("plen: %d", plen);
+	assert(strcmp(plain_buf, words) == 0);
+	LOG("[1] text decrypted: %s", plain_buf);
+	cl_rsa_destroy(rsa);
+	memset(cipher_buf, 0, 600);
+	memset(plain_buf, 0, 100);
+	plen = -1;
+	clen = -1;
+	assert(cl_rsa_gen(65537, 4096, &rsa) == SUCC);
+	assert(rsa != NULL);
+	assert(cl_rsa_enc(rsa, true, words, wd_len, cipher_buf, &clen) == SUCC);
+	assert(clen == 512);
+	LOG("clen: %d", clen);
+	assert(cl_rsa_dec(rsa, false, cipher_buf, clen, plain_buf, &plen) == SUCC);
+	assert(plen == wd_len);
+	LOG("plen: %d", plen);
+	assert(strcmp(plain_buf, words) == 0);
+	LOG("[2] text decrypted: %s", plain_buf);
+	cl_rsa_destroy(rsa);
+
 	DONE;
 }
 

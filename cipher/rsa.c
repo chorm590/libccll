@@ -97,7 +97,6 @@ Ret cl_rsa_gen(const int exponent, const int bits, RSA **rsa)
 		return FAIL;
 	}
 	BN_free(bn);
-	CLOGI("RSA gened, bits: %d", bits);
 
 	*rsa = _rsa;
 
@@ -137,7 +136,6 @@ Ret cl_rsa_to_file(RSA *rsa, const char *pub_key_fn, const char *prv_key_fn)
 			return FAIL;
 		}
 		BIO_free_all(bio_pbk);
-		CLOGI("pub-key wrote to %s", pub_key_fn);
 	}
 
 	if(prv_key_fn)
@@ -159,7 +157,6 @@ Ret cl_rsa_to_file(RSA *rsa, const char *pub_key_fn, const char *prv_key_fn)
 			return FAIL;
 		}
 		BIO_free_all(bio_pvk);
-		CLOGI("prv-key wrote to %s", prv_key_fn);
 	}
 
 	return SUCC;
@@ -215,6 +212,38 @@ Ret cl_rsa_to_bytes(RSA *rsa, uint8_t *pub_key_buf, size_t *pbk_len, uint8_t *pr
 		*pvk_len = _pvk_len;
 		BIO_free(bio_pvk);
 	}
+
+	return SUCC;
+}
+
+Ret cl_rsa_enc(RSA *rsa, Bool with_pbk, uint8_t *plain, int plen, uint8_t *cipher, int *clen)
+{
+	TRACE();
+	if(rsa == NULL || plain == NULL || cipher == NULL || clen == NULL) return FAIL;
+
+	const int ret = with_pbk ? RSA_public_encrypt(plen, plain, cipher, rsa, RSA_PKCS1_PADDING) : RSA_private_encrypt(plen, plain, cipher, rsa, RSA_PKCS1_PADDING);
+	if(ret == -1)
+	{
+		CLOGE("enc with %s failed, err: %d", with_pbk ? "pub-key" : "prv-key", errno);
+		return FAIL;
+	}
+	*clen = ret;
+
+	return SUCC;
+}
+
+Ret cl_rsa_dec(RSA *rsa, Bool with_pbk, uint8_t *cipher, int clen, uint8_t *plain, int *plen)
+{
+	TRACE();
+	if(rsa == NULL || cipher == NULL || plain == NULL || plen == NULL) return FAIL;
+
+	const int ret = with_pbk ? RSA_public_decrypt(clen, cipher, plain, rsa, RSA_PKCS1_PADDING) : RSA_private_decrypt(clen, cipher, plain, rsa, RSA_PKCS1_PADDING);
+	if(ret == -1)
+	{
+		CLOGE("dec with %s failed, err: %d", with_pbk ? "pub-key" : "prv-key", errno);
+		return FAIL;
+	}
+	*plen = ret;
 
 	return SUCC;
 }
