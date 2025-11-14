@@ -11,6 +11,7 @@
 #include "_event.h"
 #include "_timer.h"
 #include "timer.h"
+#include "_rsa.h"
 
 TAG = "main";
 
@@ -41,10 +42,12 @@ Ret cl_init(print_fun pfun)
 	INIT(log);
 	INIT(evt);
 	INIT(timer);
+	INIT(rsa);
 
 	s_prtfun = pfun;
 	s_init = true;
 	cl_log(DEBUG, cltag, "libccll initialized");
+
 	return SUCC;
 }
 
@@ -53,6 +56,7 @@ void cl_deinit()
 	TRACE();
 	s_init = false;
 	s_prtfun = NULL;
+	DEINIT(rsa);
 	DEINIT(timer);
 	DEINIT(evt);
 	DEINIT(log);

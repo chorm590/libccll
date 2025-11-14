@@ -1,6 +1,6 @@
 #
 # A common c-language library in linux
-# Started at 2025-10-31
+# Since 2025-10-31
 
 VERSION := 0.0.0
 NAME := ccll
@@ -14,6 +14,7 @@ AR := $(CROSS_COMPILE)ar
 SRCS := comm/alloc.c \
 		comm/txt.c \
 		cfg/ini.c \
+		cipher/rsa.c \
 		evt/event.c \
 		log/log.c \
 		sys/timer.c \
@@ -23,9 +24,10 @@ SRCS := comm/alloc.c \
 OBJS := $(SRCS:.c=.o)
 CFLAGS_C := -fPIC -Wall
 CFLAGS_L := -shared -Wall
-LDFLAGS := -lpthread
+LDFLAGS := -lpthread -lssl -lcrypto
 INCS := -Icomm/inc \
 		-Icfg/inc \
+		-Icipher/inc \
 		-Ievt/inc \
 		-Ilog/inc \
 		-Iqueue/inc \

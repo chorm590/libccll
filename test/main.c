@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <openssl/rsa.h>
 
 #include "cl_def.h"
 #include "cl_ccll.h"
@@ -17,6 +18,7 @@
 #include "cl_sh.h"
 #include "cl_ini.h"
 #include "cl_txt.h"
+#include "cl_rsa.h"
 
 TAG = "test";
 
@@ -686,6 +688,124 @@ key4      =value4\n\
 
 
 /******************************************
+ **             testing cipher             **
+ ******************************************/
+static void test_rsa()
+{
+	LTRACE();
+	RSA *rsa;
+
+	LOG("1. generate the RSA");
+	rsa = NULL;
+	assert(cl_rsa_gen(123, 2048, &rsa) == FAIL);
+	assert(rsa == NULL);
+	assert(cl_rsa_gen(123, 4096, &rsa) == FAIL);
+	assert(rsa == NULL);
+	assert(cl_rsa_gen(123, 456, &rsa) == FAIL);
+	assert(rsa == NULL);
+	assert(cl_rsa_gen(65537, 456, &rsa) == FAIL);
+	assert(rsa == NULL);
+	assert(cl_rsa_gen(65537, 2048, &rsa) == SUCC);
+	assert(rsa != NULL);
+	cl_rsa_destroy(rsa);
+	rsa = NULL;
+	assert(cl_rsa_gen(65537, 4096, &rsa) == SUCC);
+	assert(rsa != NULL);
+	cl_rsa_destroy(rsa);
+
+	LOG("2. export RSA to file");
+	const char *pbk_fn1 = "out/pbk1.pem";
+	const char *pbk_fn2 = "out/pbk2.pem";
+	const char *pbk_fn3 = "out/pbk3.pem";
+	const char *pbk_fn4 = "out/pbk4.pem";
+	const char *pvk_fn1 = "out/pvk1.pem";
+	const char *pvk_fn2 = "out/pvk2.pem";
+	const char *pvk_fn3 = "out/pvk3.pem";
+	const char *pvk_fn4 = "out/pvk4.pem";
+	rsa = NULL;
+	assert(cl_rsa_gen(65537, 2048, &rsa) == SUCC);
+	assert(rsa != NULL);
+	assert(cl_rsa_to_file(rsa, pbk_fn1, pvk_fn1) == SUCC);
+	assert(cl_rsa_to_file(rsa, pbk_fn2, NULL) == SUCC);
+	assert(cl_rsa_to_file(rsa, NULL, pvk_fn2) == SUCC);
+	assert(cl_rsa_to_file(rsa, NULL, NULL) == SUCC);
+	cl_rsa_destroy(rsa);
+	rsa = NULL;
+	assert(cl_rsa_gen(65537, 4096, &rsa) == SUCC);
+	assert(rsa != NULL);
+	assert(cl_rsa_to_file(rsa, pbk_fn3, pvk_fn3) == SUCC);
+	assert(cl_rsa_to_file(rsa, pbk_fn4, NULL) == SUCC);
+	assert(cl_rsa_to_file(rsa, NULL, pvk_fn4) == SUCC);
+	assert(cl_rsa_to_file(rsa, NULL, NULL) == SUCC);
+	cl_rsa_destroy(rsa);
+	LOG("  You must check the export file manually");
+
+	LOG("3. export RSA to memory");
+	uint8_t pbk_bf1[512];
+	uint8_t pvk_bf1[2048];
+	size_t pbk_len1;
+	size_t pvk_len1;
+	rsa = NULL;
+	assert(cl_rsa_gen(65537, 2048, &rsa) == SUCC);
+	assert(rsa != NULL);
+	memset(pbk_bf1, 0, 512);
+	memset(pvk_bf1, 0, 2048);
+	pbk_len1 = 0;
+	pvk_len1 = 0;
+	assert(cl_rsa_to_bytes(rsa, pbk_bf1, &pbk_len1, pvk_bf1, &pvk_len1) == SUCC);
+	LOG("pbk_len1: %ld, pbk_bf1:\n%s\npvk_len1: %ld, pvk_bf1:\n%s\n", pbk_len1, pbk_bf1, pvk_len1, pvk_bf1);
+	assert(cl_rsa_to_bytes(rsa, pbk_bf1, NULL, pvk_bf1, &pvk_len1) == FAIL);
+	assert(cl_rsa_to_bytes(rsa, pbk_bf1, &pbk_len1, pvk_bf1, NULL) == FAIL);
+	memset(pbk_bf1, 0, 512);
+	memset(pvk_bf1, 0, 2048);
+	pbk_len1 = 0;
+	pvk_len1 = 0;
+	assert(cl_rsa_to_bytes(rsa, pbk_bf1, &pbk_len1, NULL, NULL) == SUCC);
+	LOG("pbk_len1: %ld, pbk_bf1:\n%s\npvk_len1: %ld, pvk_bf1:\n%s\n", pbk_len1, pbk_bf1, pvk_len1, pvk_bf1);
+	cl_rsa_destroy(rsa);
+	uint8_t pbk_bf2[1024];
+	uint8_t pvk_bf2[4096];
+	size_t pbk_len2;
+	size_t pvk_len2;
+	rsa = NULL;
+	assert(cl_rsa_gen(65537, 4096, &rsa) == SUCC);
+	assert(rsa != NULL);
+	memset(pbk_bf2, 0, 1024);
+	memset(pvk_bf2, 0, 4096);
+	pbk_len2 = 0;
+	pvk_len2 = 0;
+	assert(cl_rsa_to_bytes(rsa, pbk_bf2, &pbk_len2, pvk_bf2, &pvk_len2) == SUCC);
+	LOG("[1] pbk_len2: %ld, pbk_bf2:\n%s\npvk_len2: %ld, pvk_bf2:\n%s\n", pbk_len2, pbk_bf2, pvk_len2, pvk_bf2);
+	assert(cl_rsa_to_bytes(rsa, pbk_bf2, NULL, pvk_bf2, &pvk_len2) == FAIL);
+	assert(cl_rsa_to_bytes(rsa, pbk_bf2, &pbk_len2, pvk_bf2, NULL) == FAIL);
+	assert(cl_rsa_to_bytes(rsa, pbk_bf2, NULL, pvk_bf2, NULL) == FAIL);
+	memset(pbk_bf2, 0, 1024);
+	memset(pvk_bf2, 0, 4096);
+	pbk_len2 = 0;
+	pvk_len2 = 0;
+	assert(cl_rsa_to_bytes(rsa, pbk_bf2, &pbk_len2, NULL, NULL) == SUCC);
+	LOG("[2] pbk_len2: %ld, pbk_bf2:\n%s\npvk_len2: %ld, pvk_bf2:\n%s\n", pbk_len2, pbk_bf2, pvk_len2, pvk_bf2);
+	memset(pbk_bf2, 0, 1024);
+	memset(pvk_bf2, 0, 4096);
+	pbk_len2 = 0;
+	pvk_len2 = 0;
+	assert(cl_rsa_to_bytes(rsa, pbk_bf2, &pbk_len2, NULL, &pvk_len2) == SUCC);
+	LOG("[3] pbk_len2: %ld, pbk_bf2:\n%s\npvk_len2: %ld, pvk_bf2:\n%s\n", pbk_len2, pbk_bf2, pvk_len2, pvk_bf2);
+	cl_rsa_destroy(rsa);
+
+	DONE;
+}
+
+static void test_cipher()
+{
+	LTRACE();
+	test_rsa();
+
+	DONE;
+}
+
+
+/******************************************
  **             testing menu             **
  ******************************************/
 static void test()
@@ -696,6 +816,7 @@ static void test()
 	//test_timer();
 	//test_sh();
 	//test_cfg();
+	//test_cipher();
 }
 
 int main()

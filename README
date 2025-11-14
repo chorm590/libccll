@@ -1,0 +1,43 @@
+The 'libccll' is a helper library with full name 'library of common c-language in linux'.
+It aims to wrap and aggergate the most-commonly function.
+
+FUNCTION LIST:
+  [config]
+    1. ini config file parser.
+       A light-weight ini-file and ini-text-in-memory parser.
+       Get the value from specify section and key.
+
+  [common]
+    1. memory alloc
+       Wrap the malloc&free, track memory allocated to help avoid memory leaks.
+       It's highly recommanded to replace the traditionaly malloc&free.
+ 
+    2. types definition
+       Import the boolean type.
+       Import the container_of.
+
+    3. text process
+       Wrap the 'read-line' from text.
+  
+    4. delay
+       Wrap the sleep function to marco.
+
+  [event]
+    1. event publish system
+       An event publish and subscribe system.
+
+  [log]
+    1. log wrapper
+       Standardize the log output.
+
+  [queue]
+    1. List
+       A doubly linked list.
+
+  [system]
+    1. shell executer
+       Execute shell command and fetch the result.
+
+    2. timer
+       Just a timer, wrap with 'timerfd'.
+
