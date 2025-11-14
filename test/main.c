@@ -15,6 +15,8 @@
 #include "cl_wait.h"
 #include "cl_timer.h"
 #include "cl_sh.h"
+#include "cl_ini.h"
+#include "cl_txt.h"
 
 TAG = "test";
 
@@ -31,16 +33,48 @@ TAG = "test";
  *****************************************/
 static void test_alloc()
 {
+	LTRACE();
 	char *buf1 = MALLOC(32);
 	LOG("addr of buf1: %p", buf1);
 	cl_iter_objs();
 	FREE(buf1);
 	cl_iter_objs();
+
+	DONE;
+}
+
+static void test_txt()
+{
+	LTRACE();
+	char *txt = " \n\
+		this is line1\n\
+		line2\r\n\
+line3   \n\
+\n\
+\n\
+   The last line";
+
+	char line[64];
+	char *_txt = txt;
+	int off;
+	int cnt = 0;
+	while((off = cl_txt_pos_line(line, 64, _txt)) != -1)
+	{
+		LOG("--->%s<", line);
+		if(off == 0) break;
+		_txt += off;
+		cnt++;
+	}
+	assert(cnt == 6);
+
+	DONE;
 }
 
 static void test_common()
 {
+	LTRACE();
 	test_alloc();
+	test_txt();
 }
 
 /******************************************
@@ -536,6 +570,122 @@ static void test_sh()
 
 
 /******************************************
+ **             testing cfg              **
+ ******************************************/
+static void test_cfg()
+{
+	LTRACE();
+	const char *sec = "sec";
+	const char *key = "key";
+	char value[128];
+	LOG("1. invalid fn");
+	assert(cl_ini_get("ewqrq", NULL, key, value) == FAIL);
+	assert(cl_ini_get("8888", sec, key, value) == FAIL);
+
+	LOG("2. valid fn");
+	const char *fn1 = "test/test1.ini";
+	const char *fn2 = "test/test2.ini";
+	const char *sec1 = "sec1";
+	const char *sec2 = "sec2";
+	const char *sec3 = "sec3";
+	const char *sec4 = "sec4";
+	const char *key1 = "key1";
+	const char *key2 = "key.2";
+	const char *key3 = "key4";
+	const char *key4 = "key5";
+	const char *key5 = "key6";
+	const char *key6 = "key7";
+	const char *key7 = "key11";
+	const char *key8 = "key8";
+	const char *value1 = "value1";
+	const char *value2 = "value.2";
+	const char *value3 = "value3";
+	const char *value4 = "value4";
+	const char *value5 = "value5";
+	const char *value6 = "value6";
+	const char *value7 = "val7";
+	const char *value8 = "= value8";
+	assert(cl_ini_get(fn1, NULL, key, value) == FAIL);
+	assert(cl_ini_get(fn1, sec1, key1, value) == SUCC);
+	assert(strcmp(value, value1) == 0);
+	assert(cl_ini_get(fn1, sec1, key2, value) == SUCC);
+	assert(strcmp(value, value2) == 0);
+	assert(cl_ini_get(fn1, sec1, key3, value) == FAIL);
+	assert(cl_ini_get(fn1, sec2, key1, value) == SUCC);
+	assert(strcmp(value, value3) == 0);
+	assert(cl_ini_get(fn1, sec2, key2, value) == FAIL);
+	assert(cl_ini_get(fn1, sec3, key2, value) == FAIL);
+	assert(cl_ini_get(fn1, sec3, key1, value) == SUCC);
+	assert(strcmp(value, value4) == 0);
+	assert(cl_ini_get(fn1, sec4, key2, value) == FAIL);
+	assert(cl_ini_get(fn1, sec4, key3, value) == SUCC);
+	assert(strcmp(value, value5) == 0);
+	assert(cl_ini_get(fn1, sec4, key4, value) == SUCC);
+	assert(strcmp(value, value6) == 0);
+	assert(cl_ini_get(fn1, sec4, key5, value) == SUCC);
+	assert(strcmp(value, value6) == 0);
+	assert(cl_ini_get(fn1, sec4, key6, value) == SUCC);
+	assert(strcmp(value, value7) == 0);
+	assert(cl_ini_get(fn2, sec1, key1, value) == FAIL);
+	assert(strcmp(value, value7) == 0);
+	assert(cl_ini_get(fn2, sec4, key3, value) == FAIL);
+	assert(cl_ini_get(fn2, NULL, key1, value) == SUCC);
+	assert(strcmp(value, value1) == 0);
+	assert(cl_ini_get(fn2, NULL, key2, value) == SUCC);
+	assert(strcmp(value, value2) == 0);
+	assert(cl_ini_get(fn2, NULL, key7, value) == SUCC);
+	assert(strcmp(value, value4) == 0);
+	assert(cl_ini_get(fn2, NULL, key3, value) == SUCC);
+	assert(strcmp(value, value5) == 0);
+	assert(cl_ini_get(fn2, NULL, key4, value) == SUCC);
+	assert(strcmp(value, value6) == 0);
+	assert(cl_ini_get(fn2, NULL, key5, value) == SUCC);
+	assert(strcmp(value, value6) == 0);
+	assert(cl_ini_get(fn2, NULL, key6, value) == SUCC);
+	assert(strcmp(value, value7) == 0);
+	assert(cl_ini_get(fn2, NULL, key8, value) == SUCC);
+	assert(strcmp(value, value8) == 0);
+
+	LOG("3. ini in memory");
+	const char *keys[] = {
+		"key1",
+		"key2",
+		"key3",
+		"key4",
+		"key5",
+		"key6",
+	};
+	const char *vals[] = {
+		"value1",
+		"value2",
+		"value3",
+		"value4",
+		"value5",
+		"value6",
+	};
+	char *ini1 = "key1     =value1\n\
+key2=value2\r\n\
+key3 = value3\r\n\
+key4      =value4\n\
+		key5=     								value5\r\n\
+		key6 = value6";
+	{
+		int i;
+		char value[64];
+		const size_t cnt = sizeof(keys) / sizeof(char *);
+		for(i = 0; i < cnt; i++)
+		{
+			assert(cl_ini_get2(ini1, NULL, keys[i], value) == SUCC);
+			LOG("key: >%s<, value: >%s<", keys[i], value);
+			assert(strcmp(value, vals[i]) == 0);
+		}
+	}
+
+	DONE;
+}
+
+
+/******************************************
  **             testing menu             **
  ******************************************/
 static void test()
@@ -545,6 +695,7 @@ static void test()
 	//test_event();
 	//test_timer();
 	//test_sh();
+	//test_cfg();
 }
 
 int main()

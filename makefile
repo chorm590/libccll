@@ -12,6 +12,8 @@ LD := $(CROSS_COMPILE)ld
 AR := $(CROSS_COMPILE)ar
 
 SRCS := comm/alloc.c \
+		comm/txt.c \
+		cfg/ini.c \
 		evt/event.c \
 		log/log.c \
 		sys/timer.c \
