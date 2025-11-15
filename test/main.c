@@ -19,6 +19,7 @@
 #include "cl_ini.h"
 #include "cl_txt.h"
 #include "cl_rsa.h"
+#include "cl_klciph.h"
 
 TAG = "test";
 
@@ -875,10 +876,22 @@ static void test_rsa()
 	DONE;
 }
 
+static void test_klciph()
+{
+	LTRACE();
+	int i = 1000;
+	while(i-- > 0)
+		assert(klciph_enc(KLCP_M256, NULL, 0, NULL, NULL) == SUCC);
+	printf("\n");
+
+	DONE;
+}
+
 static void test_cipher()
 {
 	LTRACE();
-	test_rsa();
+	//test_rsa();
+	test_klciph();
 
 	DONE;
 }
@@ -895,7 +908,7 @@ static void test()
 	//test_timer();
 	//test_sh();
 	//test_cfg();
-	//test_cipher();
+	test_cipher();
 }
 
 int main()

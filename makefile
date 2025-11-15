@@ -15,6 +15,7 @@ SRCS := comm/alloc.c \
 		comm/txt.c \
 		cfg/ini.c \
 		cipher/rsa.c \
+		cipher/klciph.c \
 		evt/event.c \
 		log/log.c \
 		sys/timer.c \
@@ -36,6 +37,8 @@ INCS := -Icomm/inc \
 
 OBJ_DIR := out/obj
 OBJS_C := $(addprefix $(OBJ_DIR)/, $(OBJS))
+
+CMPL_DATE := "\"$(shell date '+%Y-%m-%d %H:%M')\""
 
 all: clean env ext_lib $(OBJS)
 	@echo "making $(NAME)..."
@@ -59,7 +62,7 @@ ext_lib:
 
 %.o: %.c
 	@if [ ! -d $(OBJ_DIR)/$$(dirname $@) ]; then mkdir -p $(OBJ_DIR)/$$(dirname $@); fi
-	$(CC) $(CFLAGS_C) -c $< $(INCS) -o $(OBJ_DIR)/$@
+	$(CC) $(CFLAGS_C) -DCMPLDATE=$(CMPL_DATE) -c $< $(INCS) -o $(OBJ_DIR)/$@
 
 cfgs:
 	@mkdir -p out/etc/

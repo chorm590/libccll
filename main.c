@@ -12,6 +12,7 @@
 #include "_timer.h"
 #include "timer.h"
 #include "_rsa.h"
+#include "_klciph.h"
 
 TAG = "main";
 
@@ -43,6 +44,7 @@ Ret cl_init(print_fun pfun)
 	INIT(evt);
 	INIT(timer);
 	INIT(rsa);
+	INIT(klciph); // Optional fun
 
 	s_prtfun = pfun;
 	s_init = true;
@@ -56,6 +58,7 @@ void cl_deinit()
 	TRACE();
 	s_init = false;
 	s_prtfun = NULL;
+	DEINIT(klciph);
 	DEINIT(rsa);
 	DEINIT(timer);
 	DEINIT(evt);
