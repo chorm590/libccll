@@ -879,10 +879,10 @@ static void test_rsa()
 static void test_klciph()
 {
 	LTRACE();
-	int i = 1000;
-	while(i-- > 0)
-		assert(klciph_enc(KLCP_M256, NULL, 0, NULL, NULL) == SUCC);
-	printf("\n");
+	char *plain = "abcdefg";
+	uint8_t cipher[256];
+	int clen;
+	assert(klciph_enc(plain, strlen(plain), cipher, &clen) == SUCC);
 
 	DONE;
 }

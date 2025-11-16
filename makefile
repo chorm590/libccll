@@ -13,6 +13,7 @@ AR := $(CROSS_COMPILE)ar
 
 SRCS := comm/alloc.c \
 		comm/txt.c \
+		comm/bytes.c \
 		cfg/ini.c \
 		cipher/rsa.c \
 		cipher/klciph.c \
@@ -25,7 +26,7 @@ SRCS := comm/alloc.c \
 OBJS := $(SRCS:.c=.o)
 CFLAGS_C := -fPIC -Wall
 CFLAGS_L := -shared -Wall
-LDFLAGS := -lpthread -lssl -lcrypto
+LDFLAGS := -lpthread -lssl -lcrypto -lm
 INCS := -Icomm/inc \
 		-Icfg/inc \
 		-Icipher/inc \
@@ -37,8 +38,6 @@ INCS := -Icomm/inc \
 
 OBJ_DIR := out/obj
 OBJS_C := $(addprefix $(OBJ_DIR)/, $(OBJS))
-
-CMPL_DATE := "\"$(shell date '+%Y-%m-%d %H:%M')\""
 
 all: clean env ext_lib $(OBJS)
 	@echo "making $(NAME)..."
@@ -62,7 +61,7 @@ ext_lib:
 
 %.o: %.c
 	@if [ ! -d $(OBJ_DIR)/$$(dirname $@) ]; then mkdir -p $(OBJ_DIR)/$$(dirname $@); fi
-	$(CC) $(CFLAGS_C) -DCMPLDATE=$(CMPL_DATE) -c $< $(INCS) -o $(OBJ_DIR)/$@
+	$(CC) $(CFLAGS_C) -c $< $(INCS) -o $(OBJ_DIR)/$@
 
 cfgs:
 	@mkdir -p out/etc/
