@@ -883,16 +883,25 @@ static void test_klciph()
 	char *plain = "1234567890";
 	uint8_t cipher[256];
 	int clen;
-	assert(klciph_enc(plain, strlen(plain), cipher, &clen) == SUCC);
-	cl_print_bytes(cipher, 256);
+	int cnt = 10000000;
+	while(cnt-- > 0)
+	{
+		assert(klciph_enc(plain, strlen(plain), cipher, &clen) == SUCC);
+		cl_print_bytes(cipher, 256);
 
-//	SLEEP(2);
+//		SLEEP(2);
+		SLEEP_MS(50);
 
-	uint8_t plain2[256] = {0};
-	int plen2 = -1;
-	assert(klciph_dec(cipher, clen, plain2, &plen2) == SUCC);
-	LOG("    plain text: %s, len: %ld", plain, strlen(plain));
-	LOG("decrypted text: %s, len: %ld", plain2, strlen(plain2));
+		LOG("--------- decrypt");
+		uint8_t plain2[256] = {0};
+		int plen2 = -1;
+		assert(klciph_dec(cipher, clen, plain2, &plen2) == SUCC);
+		LOG("    plain text: %s, len: %ld", plain, strlen(plain));
+		LOG("decrypted text: %s, len: %ld", plain2, strlen(plain2));
+		assert(strlen(plain) == strlen(plain2));
+		assert(strcmp(plain, plain2) == 0);
+		LOG("\n\n");
+	}
 
 	DONE;
 }

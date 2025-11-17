@@ -321,7 +321,7 @@ Ret klciph_enc(uint8_t *plain, int plen, uint8_t *cipher, int *clen)
 		bucket[begidx] = 1;
 		buffer[0] = (uint8_t) (ch14s[chidx] >> 8);
 		bucket[0] = 1;
-		from = 1;
+		from = 0;
 #if DBG
 		a151236 = begidx;
 		a151237 = 0;
