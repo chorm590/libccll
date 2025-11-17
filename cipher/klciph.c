@@ -658,7 +658,7 @@ Ret klciph_dec(uint8_t *cipher, int clen, uint8_t *plain, int *plen)
 	}
 	k -= bali;
 #if DBG
-	CLOGD("cnt parsed: %d", k);
+	CLOGD("cnt parsed: %d, len: %d", k, len);
 #endif
 	if(k != len)
 	{
