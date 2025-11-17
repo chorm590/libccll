@@ -15,7 +15,7 @@ TAG = "klciph";
 #undef TRACE
 #define TRACE() ;
 
-#define DBG 1 // Print the running log
+#define DBG 0 // Print the running log
 
 #define CH14S_SZ 16
 static const uint16_t ch14s[] = { // characteristic table
@@ -410,8 +410,8 @@ Ret klciph_enc(uint8_t *plain, int plen, uint8_t *cipher, int *clen)
 #endif
 
 	// Step 7
-	buffer[ch1_idx] ^= key1;
-	buffer[len_idx] ^= key2;
+	buffer[ch1_idx] ^= key2;
+	buffer[len_idx] ^= key1;
 #if DBG
 {
 	CLOGD("--> Encrypt the ch1 and len");
@@ -471,6 +471,9 @@ Ret klciph_enc(uint8_t *plain, int plen, uint8_t *cipher, int *clen)
 			return FAIL;
 		}
 		buffer[from2] = i < 2 ? tarr[i] ^ key1 : tarr[i] ^ key2;
+#if DBG
+		CLOGD("time cipher: %02x", buffer[from2]);
+#endif
 		bucket[from2] = 1;
 	}
 }
@@ -485,6 +488,9 @@ Ret klciph_enc(uint8_t *plain, int plen, uint8_t *cipher, int *clen)
 			return FAIL;
 		}
 		from = arr1[i];
+#if DBG
+		CLOGD("idx: %d", idx);
+#endif
 		buffer[from] = ((from & 1) == 1) ? idx ^ key1 : idx ^ key2;
 		_put_data(plain + (i << 2), from, idx, key1, key2, bucket, buffer);
 	}
@@ -503,9 +509,165 @@ ERR_OCR_RET4633:
 	return FAIL;
 }
 
+static int _get_next_idx(const int cur_idx)
+{
+	if(cur_idx == 255) return 0;
+	if(cur_idx == (BEG_IDX - 1)) return BEG_IDX + 1;
+	return cur_idx + 1;
+}
+#define NEXT() \
+	idx = _get_next_idx(idx)
+
 Ret klciph_dec(uint8_t *cipher, int clen, uint8_t *plain, int *plen)
 {
 	TRACE();
+	if(cipher == NULL || clen != 256 || plain == NULL || plen == NULL) return FAIL;
+
+/*
+	 1. Get the begin-index
+	 2. Get the encrypted characteristic
+	 3. Get the key1, key2 and len
+	 4. Decrypt the characteristic and check it
+	 5. Decrypt the len and check it
+	 6. Calculate the amount of idx
+	 7. Get and decrypt the time and check it
+	 8. Get and decrypt the indices and get the data
+ * */
+
+	uint8_t buffer[clen];
+	memcpy(buffer, cipher, clen);
+	uint8_t plain_buf[MAX_PLAIN_BYTES];
+
+	int idx;
+	const int begidx = buffer[BEG_IDX];
+#if DBG
+	CLOGD("begin index: %d", begidx);
+#endif
+	idx = begidx;
+	const uint8_t ch2 = buffer[idx];
+	NEXT();
+	uint8_t ch1 = buffer[idx];
+	NEXT();
+	const uint8_t key1 = buffer[idx];
+	NEXT();
+	NEXT();
+	const uint8_t _len = buffer[idx];
+	NEXT();
+	NEXT();
+	const uint8_t key2 = buffer[idx];
+	ch1 ^= key2;
+	const uint16_t ch14 = (uint16_t) (ch2 | ((ch1 << 8) & 0xff00));
+	const uint8_t len = _len ^ key1;
+#if DBG
+	CLOGD("key1: 0x%02x, key2: 0x%02x, characteristic: 0x%04x, len: %d", key1, key2, ch14, len);
+#endif
+{
+	int i;
+	Bool found = false;
+	for(i = 0; i < CH14S_SZ; i++)
+	{
+		if(ch14 == ch14s[i])
+		{
+			found = true;
+			break;
+		}
+	}
+	if(!found)
+	{
+		CLOGE("failed2810");
+		return FAIL;
+	}
+}
+
+	if(len > MAX_PLAIN_BYTES)
+	{
+		CLOGE("failed1129");
+		return FAIL;
+	}
+
+	const uint8_t idx_amt = (uint8_t) ceil((double) len / 4.0);
+	const uint8_t bali = len % 4;
+#if DBG
+	CLOGD("amount of idx: %d, byte amount of last index: %d", idx_amt, bali);
+#endif
+
+	// Step 7
+	const int _idx = idx;
+{
+	int i;
+	for(i = 0; i < idx_amt; i++)
+		NEXT();
+}
+	NEXT();
+	const uint8_t min = buffer[idx] ^ key1;
+	NEXT();
+	const uint8_t day = buffer[idx] ^ key1;
+	NEXT();
+	const uint8_t hour = buffer[idx] ^ key2;
+	NEXT();
+	const uint8_t sec = buffer[idx] ^ key2;
+
+	time_t t1 = time(NULL);
+	struct tm *t2 = localtime(&t1);
+	const uint8_t n_min = (uint8_t) t2->tm_min;
+	const uint8_t n_day = (uint8_t) t2->tm_mday;
+	const uint8_t n_hour = (uint8_t) t2->tm_hour;
+	const uint8_t n_sec = (uint8_t) t2->tm_sec;
+#if DBG
+	CLOGD("The time: %d, %d:%d:%d", day, hour, min, sec);
+	CLOGD("     now: %d, %d:%d:%d", n_day, n_hour, n_min, n_sec);
+#endif
+	if(day != n_day || hour != n_hour)
+	{
+		CLOGE("failed4524");
+		return FAIL;
+	}
+	const int sec1 = min * 60 + sec;
+	const int sec_diff = n_min * 60 + n_sec - sec1;
+	if(sec_diff < 0 || sec_diff > 6)
+	{
+		CLOGE("failed948");
+		return FAIL;
+	}
+	idx = _idx;
+
+	// Step 8
+	int j, k;
+	for(j = 0, k = 0; j < idx_amt; j++)
+	{
+		NEXT();
+		uint8_t where = (idx & 1) ? buffer[idx] ^ key1: buffer[idx] ^ key2;
+#if DBG
+		CLOGD("where: %d", where);
+#endif
+		plain_buf[k++] = (idx & 1) ? buffer[where] ^ key2 : buffer[where] ^ key1;
+		if(where == 255) where = 0;
+		else where++;
+
+		plain_buf[k++] = (idx & 1) ? buffer[where] ^ key2 : buffer[where] ^ key1;
+		if(where == 255) where = 0;
+		else where++;
+
+		plain_buf[k++] = (idx & 1) ? buffer[where] ^ key2 : buffer[where] ^ key1;
+		if(where == 255) where = 0;
+		else where++;
+
+		plain_buf[k++] = (idx & 1) ? buffer[where] ^ key2 : buffer[where] ^ key1;
+		if(where == 255) where = 0;
+		else where++;
+	}
+	k -= bali;
+#if DBG
+	CLOGD("cnt parsed: %d", k);
+#endif
+	if(k != len)
+	{
+		CLOGE("failed737");
+		return FAIL;
+	}
+
+	memcpy(plain, plain_buf, k);
+	*plen = k;
 
 	return SUCC;
 }

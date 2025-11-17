@@ -886,6 +886,14 @@ static void test_klciph()
 	assert(klciph_enc(plain, strlen(plain), cipher, &clen) == SUCC);
 	cl_print_bytes(cipher, 256);
 
+//	SLEEP(2);
+
+	uint8_t plain2[256] = {0};
+	int plen2 = -1;
+	assert(klciph_dec(cipher, clen, plain2, &plen2) == SUCC);
+	LOG("    plain text: %s, len: %ld", plain, strlen(plain));
+	LOG("decrypted text: %s, len: %ld", plain2, strlen(plain2));
+
 	DONE;
 }
 
