@@ -20,6 +20,7 @@
 #include "cl_txt.h"
 #include "cl_rsa.h"
 #include "cl_klciph.h"
+#include "cl_bytes.h"
 
 TAG = "test";
 
@@ -879,10 +880,11 @@ static void test_rsa()
 static void test_klciph()
 {
 	LTRACE();
-	char *plain = "abcdefg";
+	char *plain = "1234567890";
 	uint8_t cipher[256];
 	int clen;
 	assert(klciph_enc(plain, strlen(plain), cipher, &clen) == SUCC);
+	cl_print_bytes(cipher, 256);
 
 	DONE;
 }

@@ -7,7 +7,6 @@
 
 #include "def.h"
 #include "log.h"
-#include "_klciph.h"
 #include "klciph.h"
 #include "bytes.h"
 #include "alloc.h"
@@ -46,201 +45,456 @@ static const uint16_t ch14s[] = { // characteristic table
 							// 160 in total for msg
 							// 90+ bytes can be use for confussing
 #define RANDOM_FP "/dev/random"
+#define BEG_IDX 97
 
-static Bool g_init = false;
 
-
-Ret klciph_init()
+static int _get_char_idx(FILE *frd)
 {
-	TRACE();
-	if(g_init) return FAIL;
+	uint8_t idx;
+	if(fread(&idx, 1, 1, frd) != 1)
+	{
+		CLOGE("failed2");
+		return -1;
+	}
 
-	g_init = true;
+	return (idx % CH14S_SZ);
+}
+
+static int _get_begin_idx(FILE *frd)
+{
+	uint8_t idx;
+	int cnt = 0;
+
+AGAIN4214:
+	if(cnt++ > 200)
+	{
+		CLOGE("failed4");
+		return -1;
+	}
+
+	if(fread(&idx, 1, 1, frd) != 1)
+	{
+		CLOGE("failed5");
+		return -1;
+	}
+
+	if(idx == BEG_IDX) goto AGAIN4214;
+
+	return idx;
+}
+
+static Ret _init_buffer(uint8_t *bf256, FILE *frd)
+{
+	if(fread(bf256, 1, 256, frd) != 256)
+	{
+		CLOGE("failed4");
+		return FAIL;
+	}
+
 	return SUCC;
 }
 
-void klciph_deinit()
+static int _get_free_pos(uint8_t *bucket, int from)
 {
-	TRACE();
-	g_init = false;
+	int i;
+	for(i = 0; i < 256; i++)
+	{
+		from++;
+		if(from == 256) from = 0;
+		if(*(bucket + from)) continue;
+		return from;
+	}
+
+	return -1;
+}
+#define GFROM() \
+{ \
+	from = _get_free_pos(bucket, from); \
+	if(from == -1) \
+	{ \
+		CLOGE("gen failed1"); \
+		return FAIL; \
+	} \
 }
 
+static int _get_data_idx(uint8_t *bucket, FILE *frd)
+{
+	uint8_t idx;
+	int cnt = 0;
 
-
-#define _CHK() \
-	if(!g_init) \
-	{ \
-		CLOGE("hadn't init"); \
-		return FAIL; \
+AGAIN3439:
+	if(cnt++ > 220)
+	{
+		CLOGE("failed4054");
+		return -1;
 	}
+
+	if(fread(&idx, 1, 1, frd) != 1)
+	{
+		CLOGE("failed7405");
+		return -1;
+	}
+	int idx2 = idx;
+
+	if(*(bucket + idx2++)) goto AGAIN3439;
+	if(idx2 == 256) idx2 = 0;
+	if(*(bucket + idx2++)) goto AGAIN3439;
+	if(idx2 == 256) idx2 = 0;
+	if(*(bucket + idx2++)) goto AGAIN3439;
+	if(idx2 == 256) idx2 = 0;
+	if(*(bucket + idx2++)) goto AGAIN3439;
+
+	return idx;
+}
+
+static void _put_data(const uint8_t *data, const int from, const int idx, const uint8_t key1, const uint8_t key2, uint8_t *bucket, uint8_t *buffer)
+{
+	const Bool parity = from & 1;
+#if DBG
+	int a, b, c, d;
+#endif
+
+	int idx2 = idx;
+	*(buffer + idx2) = parity ? *(data + 0) ^ key2 : *(data + 0) ^ key1;
+	*(bucket + idx2) = 1;
+#if DBG
+	a = idx2;
+#endif
+	idx2++;
+
+	if(idx2 == 256) idx2 = 0;
+	*(buffer + idx2) = parity ? *(data + 1) ^ key2 : *(data + 1) ^ key1;
+	*(bucket + idx2) = 1;
+#if DBG
+	b = idx2;
+#endif
+	idx2++;
+
+	if(idx2 == 256) idx2 = 0;
+	*(buffer + idx2) = parity ? *(data + 2) ^ key2 : *(data + 2) ^ key1;
+	*(bucket + idx2) = 1;
+#if DBG
+	c = idx2;
+#endif
+	idx2++;
+
+	if(idx2 == 256) idx2 = 0;
+	*(buffer + idx2) = parity ? *(data + 3) ^ key2 : *(data + 3) ^ key1;
+	*(bucket + idx2) = 1;
+#if DBG
+	d = idx2;
+#endif
+	idx2++;
+
+#if DBG
+{
+	CLOGD("--> Put and encrypt the index and data");
+	int j, k;
+	for(j = 0, k = 0; j < 256; j++)
+	{
+		if(j == from || j == a || j == b || j == c || j == d) printf("\e[41m");
+		else printf("\e[0m");
+
+		printf("%02x", buffer[j]);
+		if(k++ == 15)
+		{
+			k = 0;
+			printf("\e[0m\n");
+		}
+	}
+	printf("\e[0m\n");
+}
+#endif
+}
+
 Ret klciph_enc(uint8_t *plain, int plen, uint8_t *cipher, int *clen)
 {
 	TRACE();
-	_CHK();
 	if(plain == NULL || cipher == NULL || clen == NULL) return FAIL;
 	if(plen < 1 || plen > MAX_PLAIN_BYTES) return FAIL;
 
-	FILE *frd;
-	// Determine characteristic
-	frd = fopen(RANDOM_FP, "r");
+/*
+
+   The rule:
+
+	da7 da8 002 003 004 005 006 007 008 009 010 011 012 013 014 015
+	016 017 018 019 020 021 022 023 024 025 026 027 028 029 030 031
+	032 033 034 035 036 037 038 039 040 041 042 043 044 045 046 047
+	048 049 050 051 052 053 054 da9 056 057 058 059 060 061 062 063
+	064 065 066 067 068 069 070 071 072 073 074 075 076 077 078 079
+	080 081 082 083 084 085 086 087 088 089 090 091 092 093 094 095
+	096 beg 098 099 100 101 102 103 104 105 106 107 108 109 110 111
+	112 113 114 115 116 117 118 119 120 121 122 123 124 125 126 127
+	128 129 130 131 132 133 134 135 136 137 138 139 140 141 142 143
+	144 145 146 147 148 149 150 ch2 ch1  k1 154 len 156  k2 id1 id2
+	id3   m   d   h   s 165 166 167 168 169 170 171 172 173 174 175
+	176 da1 da2 da3 da4 181 182 183 184 185 186 187 188 189 190 191
+	192 193 194 195 196 197 198 199 200 201 202 203 204 205 206 207
+	208 209 210 211 212 213 214 215 216 217 218 219 220 221 222 223
+	224 225 226 227 228 229 230 231 232 233 234 235 236 237 238 239
+	240 241 242 243 244 245 246 247 248 249 250 251 252 253 da5 da6
+
+	 1. Find a random pos to storage the characteristic
+	 2. Put the pos to buf[97]
+	 3. Put the characteristic(2 bytes) to the pos
+	 4. Get the key1
+	 5. Put the len
+	 6. Get the key2
+	 7. Encrypt the characteristic[1] with key2 and len with key1
+	 8. Put the index sequence and data
+	 9. Odd idx encrypt with k1
+	10. Even idx encrypt with k2
+	11. Put the min-day-hour-sec follow by index-seq
+	12. Encrypt min-day with k1 and hour-sec with k2
+	13. If data meet the buf[97], simply skip it.
+
+	Maximum data bytes: 120
+
+ * */
+
+	FILE *frd = fopen(RANDOM_FP, "r");
 	if(frd == NULL)
 	{
-		CLOGE("init failed");
+		CLOGE("failed1");
 		return FAIL;
 	}
-	uint8_t ch14_idx;
-	if(fread(&ch14_idx, 1, 1, frd) != 1)
-	{
-		CLOGE("init k1 failed");
-		goto ERR_OCR_RET4633;
-	}
-	ch14_idx %= CH14S_SZ; // Key concerpt: 1/3, the characteristic
-#if DBG
-	CLOGD("idx: %d, ch14: 0x%04x", ch14_idx, ch14s[ch14_idx]);
-#endif
+	uint8_t bucket[256] = {0}; // To mark whether cur-buf is using
+	uint32_t from;
 
-	// Create the padding buffer
-	uint8_t buffer[256]; // Key concerpt: 2/3, the padding buffer
-	if(fread(buffer, 1, 256, frd) != 256)
-	{
-		CLOGE("buffer init failed");
-		goto ERR_OCR_RET4633;
-	}
+	// Step 1
+	const int chidx = _get_char_idx(frd);
+	if(chidx == -1) goto ERR_OCR_RET4633;
+
+	const int begidx = _get_begin_idx(frd);
+	if(begidx == -1) goto ERR_OCR_RET4633;
+
+	uint8_t buffer[256];
+	if(_init_buffer(buffer, frd) != SUCC) goto ERR_OCR_RET4633;
+
 #if DBG
+	CLOGD("idx of characteristic: %d -> 0x%04x, idx of begin: %d", chidx, ch14s[chidx], begidx); 
 	cl_print_bytes(buffer, 256);
 #endif
 
-	// Pre-set the padding buffer
-	int ch_idx = -1;
+	// Step 2
+	buffer[BEG_IDX] = begidx;
+	bucket[BEG_IDX] = 1;
+#if DBG
 {
-	// insert the characteristic
-	int i, j;
-	int x;
-	for(i = 0, x = -1; i < 200; i++)
+	CLOGD("--> Put begin");
+	int j, k;
+	for(j = 0, k = 0; j < 256; j++)
 	{
-		const uint16_t a = *((uint16_t *) (buffer + i));
-		if(a == ch14s[ch14_idx])
-		{
-#if DBG
-			CLOGD("found ch14, idx: %d", i);
-#endif
-			x = i;
-			break;
-		}
-	}
-	if(x == -1) // Not found ch14, create it.
-	{
-#if DBG
-		CLOGD("not found the ch14, create it.");
-#endif
-		for(i = 0; i < 200; i++)
-		{
-			if(buffer[i] < 200)
-			{
-				ch_idx = buffer[i];
-				*((uint16_t *) (buffer + ch_idx)) = ch14s[ch14_idx];
-#if DBG
-				CLOGD("pos found: %d, ch14: 0x%04x", ch_idx, ch14s[ch14_idx]);
-				int k;
-				for(j = 0, k = 0; j < 256; j++)
-				{
-					if(j == ch_idx) printf("\e[41m");
-					else if(j == (ch_idx + 2)) printf("\e[0m");
+		if(j == BEG_IDX) printf("\e[41m");
+		else if(j == (BEG_IDX + 1)) printf("\e[0m");
 
-					if(k == 15)
-					{
-						k = 0;
-						printf("%02x\n", buffer[j]);
-					}
-					else
-					{
-						k++;
-						printf("%02x", buffer[j]);
-					}
-				}
-				printf("\n");
-#endif
-				break;
-			}
-		}
-	}
-}
-
-	// Determine the keys
-	uint8_t key1, key2;
-	int i_idx = -1; // The index of index.
-{
-	// get the key and set the len
-	if(ch_idx == -1) return FAIL;
-	key1 = buffer[ch_idx + 2];
-	buffer[ch_idx + 3] = ch_idx;
-	buffer[ch_idx + 4] = (uint8_t) plen;
-	buffer[ch_idx + 5] = ch_idx + 6;
-	key2 = buffer[ch_idx + 6];
-	i_idx = ch_idx + 7;
-#if DBG
-	CLOGD("The key1: 0x%02x, key2: 0x%02x", key1, key2);
-	int i, j;
-	for(i = 0, j = 0; i < 256; i++)
-	{
-		if(i == (ch_idx + 2)) printf("\e[41m");
-		else if(i == (ch_idx + 7)) printf("\e[0m");
-
-		if(j == 15)
+		printf("%02x", buffer[j]);
+		if(k++ == 15)
 		{
-			j = 0;
-			printf("%02x\n", buffer[i]);
-		}
-		else
-		{
-			j++;
-			printf("%02x", buffer[i]);
+			k = 0;
+			printf("\n");
 		}
 	}
 	printf("\n");
-#endif
 }
+#endif
 
-	int i, j;
-	// Encrypt
-	// encrypt the len
-	buffer[ch_idx + 4] ^= key1;
+	// Step 3
 #if DBG
-	CLOGD("encrypt the len");
-	for(i = 0, j = 0; i < 256; i++)
+	int a151236, a151237;
+#endif
+	if(begidx == (BEG_IDX - 1))
 	{
-		if(i == (ch_idx + 4)) printf("\e[41m");
-		else if(i == (ch_idx + 5)) printf("\e[0m");
+		buffer[begidx] = (uint8_t) ch14s[chidx];
+		bucket[begidx] = 1;
+		buffer[begidx + 2] = (uint8_t) (ch14s[chidx] >> 8);
+		bucket[begidx + 2] = 1;
+		from = begidx + 2;
+#if DBG
+		a151236 = begidx;
+		a151237 = begidx + 2;
+#endif
+	}
+	else if(begidx == 255)
+	{
+		buffer[begidx] = (uint8_t) ch14s[chidx];
+		bucket[begidx] = 1;
+		buffer[0] = (uint8_t) (ch14s[chidx] >> 8);
+		bucket[0] = 1;
+		from = 1;
+#if DBG
+		a151236 = begidx;
+		a151237 = 0;
+#endif
+	}
+	else
+	{
+		*((uint16_t *) (buffer + begidx)) = ch14s[chidx];
+		bucket[begidx] = 1;
+		bucket[begidx + 1] = 1;
+		from = begidx + 1;
+#if DBG
+		a151236 = begidx;
+		a151237 = begidx + 1;
+#endif
+	}
+	const int ch1_idx = from; // For encrypt later
+#if DBG
+{
+	CLOGD("--> Put the characteristic");
+	int j, k;
+	for(j = 0, k = 0; j < 256; j++)
+	{
+		if(j == a151236 || j == a151237) printf("\e[41m");
+		else printf("\e[0m");
 
-		if(j == 15)
+		printf("%02x", buffer[j]);
+		if(k++ == 15)
 		{
-			j = 0;
-			printf("%02x\n", buffer[i]);
+			k = 0;
+			printf("\e[0m\n");
+		}
+	}
+	printf("\e[0m\n");
+}
+#endif
+
+	// Step 4, 5, 6
+	GFROM();
+	const uint8_t key1 = buffer[from];
+	bucket[from] = 1;
+#if DBG
+	a151236 = from;
+#endif
+	GFROM();
+	bucket[from] = 1;
+	GFROM();
+	buffer[from] = (uint8_t) plen;
+	bucket[from] = 1;
+	const int len_idx = from; // For encrypt later
+	GFROM();
+	bucket[from] = 1;
+	GFROM();
+	const uint8_t key2 = buffer[from];
+	bucket[from] = 1;
+#if DBG
+	a151237 = from;
+#endif
+#if DBG
+{
+	CLOGD("--> The key1, key2 and len");
+	CLOGD(" key1: 0x%02x, key2: 0x%02x, len: %d, [%d, %d]", key1, key2, plen, a151236, a151237);
+	int j, k;
+	for(j = 0, k = 0; j < 256; j++)
+	{
+		if(a151236 < a151237)
+		{
+			if(j >= a151236 && j <= a151237) printf("\e[41m");
+			else printf("\e[0m");
 		}
 		else
 		{
-			j++;
-			printf("%02x", buffer[i]);
+			if(j <= a151237 || j >= a151236) printf("\e[41m");
+			else printf("\e[0m"); 
+		}
+
+		printf("%02x", buffer[j]);
+		if(k++ == 15)
+		{
+			k = 0;
+			printf("\e[0m\n");
 		}
 	}
-	printf("\n");
+	printf("\e[0m\n");
+}
 #endif
 
-	// check and pre-set the index
-	// each index indicate 4B data
-	const int idx_amt = (int) ceil((double) plen / 4.0);
+	// Step 7
+	buffer[ch1_idx] ^= key1;
+	buffer[len_idx] ^= key2;
 #if DBG
-	CLOGD("amt of idx: %d", idx_amt);
-#endif
-	for(i = i_idx; i < idx_amt; i++)
+{
+	CLOGD("--> Encrypt the ch1 and len");
+	int j, k;
+	for(j = 0, k = 0; j < 256; j++)
 	{
-		correct the indices
+		if(j == ch1_idx || j == len_idx) printf("\e[41m");
+		else printf("\e[0m");
+
+		printf("%02x", buffer[j]);
+		if(k++ == 15)
+		{
+			k = 0;
+			printf("\e[0m\n");
+		}
 	}
+	printf("\e[0m\n");
+}
+#endif
+
+	// Step 8 ~ Step 13
+	const int idx_amt = (int) ceil((double) plen / 4.0/*4 bytes data per index*/);
+	int from2 = from;
+#if DBG
+	CLOGD("index amount: %d, from: %d", idx_amt, from2);
+#endif
+{
+	int i;
+	// make placeholder
+	int arr1[64] = {0};
+	for(i = 0; i < idx_amt; i++)
+	{
+		from2 = _get_free_pos(bucket, from2);
+		if(from2 == -1)
+		{
+			CLOGE("failed3940");
+			return FAIL;
+		}
+		bucket[from2] = 1;
+		arr1[i] = from2;
+	}
+
+	// put the time
+{
+	time_t t1 = time(NULL);
+	struct tm *t2 = localtime(&t1);
+#if DBG
+	CLOGD("day: %d, hour: %d, min: %d, sec: %d", t2->tm_mday, t2->tm_hour, t2->tm_min, t2->tm_sec);
+#endif
+	const uint8_t tarr[] = {(uint8_t) t2->tm_min, (uint8_t) t2->tm_mday, (uint8_t) t2->tm_hour, (uint8_t) t2->tm_sec};
+	for(i = 0; i < 4; i++)
+	{
+		from2 = _get_free_pos(bucket, from2);
+		if(from2 == -1)
+		{
+			CLOGE("failed2822");
+			return FAIL;
+		}
+		buffer[from2] = i < 2 ? tarr[i] ^ key1 : tarr[i] ^ key2;
+		bucket[from2] = 1;
+	}
+}
+
+	// put the index and data
+	for(i = 0; i < idx_amt; i++)
+	{
+		const int idx = _get_data_idx(bucket, frd);
+		if(idx == -1)
+		{
+			CLOGE("failed1241");
+			return FAIL;
+		}
+		from = arr1[i];
+		buffer[from] = ((from & 1) == 1) ? idx ^ key1 : idx ^ key2;
+		_put_data(plain + (i << 2), from, idx, key1, key2, bucket, buffer);
+	}
+}
 
 	fclose(frd);
 
-	// Fill it to buffer
-	// Finish
+	// Output the cipher data
+	memcpy(cipher, buffer, 256);
+	*clen = 256;
 
 	return SUCC;
 
@@ -252,7 +506,6 @@ ERR_OCR_RET4633:
 Ret klciph_dec(uint8_t *cipher, int clen, uint8_t *plain, int *plen)
 {
 	TRACE();
-	_CHK();
 
 	return SUCC;
 }
