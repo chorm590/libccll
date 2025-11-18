@@ -913,24 +913,28 @@ static void test_klciph()
 
 	LOG("2.");
 	FILE *frd = fopen("/dev/random", "r");
-	int cnt = 1;
+	int cnt = 1000;
 	while(cnt-- > 0)
 	{
+#if 1
 		uint8_t begin = 255, len = 255;
 		while(begin == 255) fread(&begin, 1, 1, frd);
 		while((len > 120) || (len < 1) || ((256 - begin) < len)) fread(&len, 1, 1, frd);
+#else
+		uint8_t begin = 5, len = 21;
+#endif
 		LOG("begin: %d, len: %d", begin, len);
 
 		assert(klciph_enc(fullbuf + begin, len, cipher, &clen) == SUCC);
 		cl_print_bytes(cipher, 256);
 
-//		SLEEP(2);
 		SLEEP_MS(10);
 
 		LOG("--------- decrypt");
 		assert(klciph_dec(cipher, clen, plain2, &plen2) == SUCC);
 		assert(plen2 == len);
 		assert(memcmp(plain2, fullbuf + begin, len) == 0);
+		LOG("--- done");
 	}
 	fclose(frd);
 
