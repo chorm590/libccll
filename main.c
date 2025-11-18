@@ -23,7 +23,8 @@ print_fun s_prtfun;
 	{ \
 		fprintf(stderr, "init " #what " failed\n"); \
 		return FAIL; \
-	}
+	} \
+	printf(#what " init done\n")
 
 #define DEINIT(what) \
 	cl_##what##_deinit();
@@ -32,10 +33,10 @@ print_fun s_prtfun;
 Ret cl_init(print_fun pfun)
 {
 	if(s_init) return SUCC;
-	s_prtfun = NULL;
-	if(pfun == NULL)
+	s_prtfun = pfun;
+	if(s_prtfun == NULL)
 	{
-		pfun = cl_log_get_def_prtfun();
+		s_prtfun = cl_log_get_def_prtfun();
 		printf("using def-print-fun\n");
 	}
 
@@ -44,7 +45,6 @@ Ret cl_init(print_fun pfun)
 	INIT(timer);
 	INIT(rsa);
 
-	s_prtfun = pfun;
 	s_init = true;
 	cl_log(DEBUG, cltag, "libccll initialized");
 

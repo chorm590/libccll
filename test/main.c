@@ -962,7 +962,7 @@ static void test()
 	//test_timer();
 	//test_sh();
 	//test_cfg();
-	test_cipher();
+	//test_cipher();
 }
 
 int main()
