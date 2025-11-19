@@ -74,4 +74,21 @@ static inline size_t list_size(CLIST *head)
 #define list_for_each_entry(pos, head, member) \
 	for(pos = container_of((head)->next, typeof(*pos), member); &pos->member != (head); pos = container_of(pos->member.next, typeof(*pos), member))
 
+typedef void (*list_free_fun)(CLIST *node);
+static inline void list_clear(CLIST *head, list_free_fun free_fun)
+{
+	const size_t sz = list_size(head);
+	int i;
+	for(i = 0; i < sz; i++)
+	{
+		CLIST *node;
+		list_for_each(node, head)
+		{
+			list_del(node);
+			if(free_fun) free_fun(node);
+			break;
+		}
+	}
+}
+
 #endif

@@ -9,6 +9,7 @@
 
 #include "cl_def.h"
 #include "cl_ccll.h"
+#include "cl_log_type.h"
 #include "cl_log.h"
 #include "cl_alloc.h"
 #include "cl_list.h"
@@ -84,6 +85,21 @@ static void test_common()
 /******************************************
  **              queue begin             **
  *****************************************/
+
+static void _emp_free_fun(CLIST *node)
+{
+	typedef struct {
+		int id;
+		char name[16];
+		int age;
+		CLIST list;
+	} Employee;
+
+	Employee *emp = container_of(node, Employee, list);
+	LOG("freeing %d", emp->id);
+	FREE(emp);
+}
+
 static void test_list()
 {
 	typedef struct {
@@ -93,6 +109,7 @@ static void test_list()
 		CLIST list;
 	} Employee;
 
+	LOG("1. ");
 	CRE_LIST_HEAD(emps);
 	assert(&emps != NULL);
 	assert(emps.next == &emps);
@@ -141,6 +158,40 @@ static void test_list()
 		free(b);
 	}
 #undef S
+
+	LOG("2. remove all elements");
+	const uint32_t cnt1 = cl_allocing_cnt();
+	CRE_LIST_HEAD(emps2);
+	assert(&emps2 != NULL);
+	assert(emps2.next == &emps2);
+	assert(emps2.prev == &emps2);
+	for(i = 0; i < 20; i++)
+	{
+		Employee *emp = (Employee *) MALLOC(sizeof(Employee));
+		assert(emp != NULL);
+		emp->id = i;
+		list_add(&emp->list, &emps2);
+		assert(list_size(&emps2) == (i + 1));
+	}
+
+	{
+		const uint32_t cnt3 = cl_allocing_cnt();
+		LOG("cnt3: %d", cnt3);
+#if 0
+		Employee *emp;
+		list_for_each_entry(emp, &emps2, list)
+		{
+			list_del(&emp->list);
+			FREE(emp);
+		}
+#else
+		list_clear(&emps2, _emp_free_fun);
+#endif
+	}
+	assert(list_size(&emps2) == 0);
+	const int cnt2 = cl_allocing_cnt();
+	LOG("cnt: %d/%d", cnt1, cnt2);
+	assert(cnt1 == cnt2);
 
 	DONE;
 }
@@ -944,7 +995,7 @@ static void test_klciph()
 static void test_cipher()
 {
 	LTRACE();
-	//test_rsa();
+	test_rsa();
 	test_klciph();
 
 	DONE;
