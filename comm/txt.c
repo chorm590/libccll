@@ -1,10 +1,12 @@
 #include <string.h>
 
 #include "def.h"
+#include "log_type.h"
+#include "_log.h"
 #include "log.h"
 #include "txt.h"
 
-TAG = "txt";
+TAG = TAG_PREFIX "txt";
 
 
 int cl_txt_pos_line(char *dst, const size_t max, char *src)

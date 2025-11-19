@@ -12,6 +12,7 @@
 
 #include "def.h"
 #include "ccll.h"
+#include "log_type.h"
 #include "_log.h"
 #include "log.h"
 #include "wait.h"
@@ -34,7 +35,7 @@ static int def_print_fun(int type, const char *tag, const char *text)
 	strftime(g_log_hdr, 30, "%F %T", b); // automatically append the terminate-character at the end.
 										 // Format: 2025-11-01 12:49:38
 	sprintf(g_log_hdr + 19, ".%03d", (int) (a.tv_usec >> 10));
-	LogType lt = (LogType) type;
+	CL_LogType lt = (CL_LogType) type;
 	sprintf(g_log_hdr + 23, " %C-%s: ", lt, tag);
 
 	printf("%s%s\n", g_log_hdr, text);
@@ -42,7 +43,7 @@ static int def_print_fun(int type, const char *tag, const char *text)
 	return SUCC;
 }
 
-void cl_log(LogType type, const char *tag, const char* msg, ...)
+void cl_log(CL_LogType type, const char *tag, const char* msg, ...)
 {
 	if(pthread_mutex_lock(&g_lock))
 	{

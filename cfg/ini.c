@@ -4,6 +4,8 @@
 #include <string.h>
 
 #include "def.h"
+#include "log_type.h"
+#include "_log.h"
 #include "log.h"
 #include "ini.h"
 #include "txt.h"
@@ -12,7 +14,7 @@
 #define MAX_SLEN MAX_KLEN
 #define MAX_LINE_BYTE 512
 
-TAG = "lw-ini";
+TAG = TAG_PREFIX "lw-ini";
 
 typedef enum {
 	FR_FOUND,

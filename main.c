@@ -4,6 +4,7 @@
 #include "_def.h"
 #include "def.h"
 #include "ccll.h"
+#include "log_type.h"
 #include "_log.h"
 #include "log.h"
 #include "list.h"
@@ -13,7 +14,7 @@
 #include "timer.h"
 #include "_rsa.h"
 
-TAG = "main";
+TAG = TAG_PREFIX "main";
 
 int s_init = false;
 print_fun s_prtfun;
@@ -23,8 +24,7 @@ print_fun s_prtfun;
 	{ \
 		fprintf(stderr, "init " #what " failed\n"); \
 		return FAIL; \
-	} \
-	printf(#what " init done\n")
+	}
 
 #define DEINIT(what) \
 	cl_##what##_deinit();
@@ -46,7 +46,7 @@ Ret cl_init(print_fun pfun)
 	INIT(rsa);
 
 	s_init = true;
-	cl_log(DEBUG, cltag, "libccll initialized");
+	cl_log(CL_INFO, cltag, "libccll initialized");
 
 	return SUCC;
 }
@@ -60,6 +60,6 @@ void cl_deinit()
 	DEINIT(timer);
 	DEINIT(evt);
 	DEINIT(log);
-	printf("libccll de-initialized\n");
+	printf("libccll deinitialized\n");
 }
 

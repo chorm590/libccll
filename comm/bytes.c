@@ -2,11 +2,13 @@
 #include <stdint.h>
 
 #include "def.h"
+#include "log_type.h"
+#include "_log.h"
 #include "log.h"
 #include "bytes.h"
 #include "alloc.h"
 
-TAG = "bytes";
+TAG = TAG_PREFIX "bytes";
 
 void cl_print_bytes(uint8_t *bytes, int size)
 {

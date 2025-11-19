@@ -6,12 +6,14 @@
 #include <math.h>
 
 #include "def.h"
+#include "log_type.h"
+#include "_log.h"
 #include "log.h"
 #include "klciph.h"
 #include "bytes.h"
 #include "alloc.h"
 
-TAG = "klciph";
+TAG = TAG_PREFIX "klciph";
 #undef TRACE
 #define TRACE() ;
 

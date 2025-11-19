@@ -11,6 +11,8 @@
 #include <pthread.h>
 
 #include "def.h"
+#include "log_type.h"
+#include "_log.h"
 #include "log.h"
 #include "_timer.h"
 #include "timer.h"
@@ -18,7 +20,7 @@
 #include "alloc.h"
 #include "wait.h"
 
-TAG = "timer";
+TAG = TAG_PREFIX "timer";
 
 #define SRV_SKT_PATH "/tmp/l89ixdrb7cyu7c99l00l1a"
 
@@ -362,7 +364,7 @@ static Bool _srv_timer_proc(int fd)
 			_rmv_timer(cb_fun);
 		} break;
 		case 3:
-			CLOGW("Destroying the timer-sys");
+			CLOGW("Destroy the timer-sys");
 			return true;
 		default:
 			ERR("unsupported type");
@@ -474,17 +476,15 @@ static void _wait_self_connect()
 
 static void * _timer_thread(void *data)
 {
-	TRACE();
 	struct epoll_event *ev_buf = (struct epoll_event *) MALLOC(10 * sizeof(struct epoll_event));
 
 	_wait_self_connect();
-	CLOGD("timer-sys is ready!");
+	CLOGI("timer-sys ready");
 
 	int i;
 	while(true)
 	{
 		const int nrs = epoll_wait(epofd, ev_buf, 10, -1);
-		CLOGD("epoll wait, nrs: %d", nrs);
 		if(nrs < 0)
 		{
 			CLOGE("wait the epoll failed, err: %d", errno);
@@ -514,14 +514,13 @@ static void * _timer_thread(void *data)
 	}
 
 TMROUT1722:
-	CLOGW("out of timer thread");
+	CLOGW("destroying...");
 	const int cnt = list_size(&g_li_sock);
 	for(i = 0; i < cnt; i++)
 	{
 		Timer *tmr;
 		list_for_each_entry(tmr, &g_li_sock, list)
 		{
-			CLOGD("destroying fd: %d", tmr->fd);
 			_epoll_del(tmr->fd);
 			list_del(&tmr->list);
 			close(tmr->fd);
@@ -536,8 +535,6 @@ TMROUT1722:
 
 Ret cl_timer_init()
 {
-	TRACE();
-
 	if(pthread_mutex_init(&g_mtx_sock, NULL))
 	{
 		LOG_INIT_FAIL(mutex);
@@ -586,13 +583,10 @@ Ret cl_timer_init()
 
 void cl_timer_deinit()
 {
-	TRACE();
 	_timer_destroy();
 	pthread_mutex_destroy(&g_mtx_sock);
-	// TODO write srv-node to request deinit
 	pthread_join(g_thr_socks, NULL);
     unlink(SRV_SKT_PATH);
-	CLOGD("timer deinitialized");
 }
 
 #define SZ 20
@@ -614,7 +608,6 @@ static void _load_srv_buf(const int type, const int sec, const int ms, const uin
 
 static void _timer_destroy()
 {
-	TRACE();
 	uint8_t buf[SZ];
 	_load_srv_buf(3, 0, 0, 0, NULL, buf);
 	if(write(clifd, buf, SZ) != SZ)

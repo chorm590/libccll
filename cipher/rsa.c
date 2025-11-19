@@ -5,15 +5,16 @@
 
 #include "_def.h"
 #include "def.h"
+#include "log_type.h"
+#include "_log.h"
 #include "log.h"
 #include "_rsa.h"
 #include "rsa.h"
 
-TAG = "rsa";
+TAG = TAG_PREFIX "rsa";
 
 Ret cl_rsa_init()
 {
-	TRACE();
 	OpenSSL_add_all_algorithms();
 	ERR_load_crypto_strings();
 
@@ -22,7 +23,6 @@ Ret cl_rsa_init()
 
 void cl_rsa_deinit()
 {
-	TRACE();
 }
 
 Ret cl_rsa_gen(const int exponent, const int bits, RSA **rsa)

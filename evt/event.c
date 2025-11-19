@@ -4,6 +4,8 @@
 #include <semaphore.h>
 
 #include "def.h"
+#include "log_type.h"
+#include "_log.h"
 #include "log.h"
 #include "list.h"
 #include "alloc.h"
@@ -11,7 +13,7 @@
 #include "_event.h"
 #include "wait.h"
 
-TAG = "evt";
+TAG = TAG_PREFIX "evt";
 
 static sem_t l_sm_evt; // To indicate the event enqueue and dequeue.
 static pthread_t l_thr_evt; // To manage the events.
@@ -25,7 +27,6 @@ static void * _evt_thread(void *data);
 
 Ret cl_evt_init()
 {
-	TRACE();
 	if(sem_init(&l_sm_evt, 0, 0))
 	{
 		CLOGE("init sm-evt failed, err: %d", errno);
@@ -60,7 +61,6 @@ Ret cl_evt_init()
 
 void cl_evt_deinit()
 {
-	TRACE();
 	l_run = false;
 	sem_post(&l_sm_evt);
 	pthread_join(l_thr_evt, NULL);
@@ -197,13 +197,11 @@ Ret cl_evt_unsub(uint16_t evt_no, cl_evt_cb callback)
 
 static void * _evt_thread(void *data)
 {
-	TRACE();
 	l_run = true;
 	while(l_run)
 	{
 		// 1. wait the signal
 		sem_wait(&l_sm_evt);
-		CLOGD("new evt");
 
 		if(pthread_mutex_lock(&l_mtx_evt))
 		{
@@ -247,7 +245,7 @@ static void * _evt_thread(void *data)
 			FREE(evt);
 		}
 	}
-	CLOGE("Out of the evt-thrd");
+	CLOGW("destroying...");
 
 	return NULL;
 }

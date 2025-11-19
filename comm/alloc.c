@@ -7,10 +7,12 @@
 
 #include "def.h"
 #include "alloc.h"
+#include "log_type.h"
+#include "_log.h"
 #include "log.h"
 #include "list.h"
 
-TAG = "alloc";
+TAG = TAG_PREFIX "alloc";
 
 static CRE_LIST_HEAD(l_objs);
 typedef struct {
