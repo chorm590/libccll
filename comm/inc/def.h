@@ -20,5 +20,21 @@ typedef enum {
 		(type *) ((char *) __mptr - offsetof(type, member)); \
 		})
 
+#define CL_PURE_PRT   "\e[0m"
+
+#define CL_RED_PRT    "\e[31m"
+#define CL_GREEN_PRT  "\e[32m"
+#define CL_YELLOW_PRT "\e[33m"
+#define CL_BLUE_PRT   "\e[34m"
+#define CL_PINK_PRT   "\e[35m"
+#define CL_CYAN_PRT   "\e[36m"
+
+#define CL_RED_BG_PRT    "\e[41m"
+#define CL_GREEN_BG_PRT  "\e[42m"
+#define CL_YELLOW_BG_PRT "\e[43m"
+#define CL_BLUE_BG_PRT   "\e[44m"
+#define CL_PINK_BG_PRT   "\e[45m"
+#define CL_CYAN_BG_PRT   "\e[46m"
+
 #endif
 
