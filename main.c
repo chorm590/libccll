@@ -13,6 +13,7 @@
 #include "_timer.h"
 #include "timer.h"
 #include "_rsa.h"
+#include "_alloc.h"
 
 TAG = TAG_PREFIX "main";
 
@@ -60,6 +61,7 @@ void cl_deinit()
 	DEINIT(timer);
 	DEINIT(evt);
 	DEINIT(log);
+	DEINIT(alloc);
 	printf("libccll deinitialized\n");
 }
 

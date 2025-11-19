@@ -129,7 +129,7 @@ static Ret _epoll_add(int fd)
 	};
 	if(epoll_ctl(epofd, EPOLL_CTL_ADD, fd, &eev))
 	{
-		CLOGE("add fd to epoll list failed, err: %d", errno);
+		CLOGE("epoll add failed, err: %d", errno);
 		return FAIL;
 	}
 
@@ -140,7 +140,7 @@ static Ret _epoll_del(int fd)
 {
 	if(epoll_ctl(epofd, EPOLL_CTL_DEL, fd, NULL))
 	{
-		CLOGW("delete timerfd from epoll failed, err: %d", errno);
+		CLOGW("epoll del failed, err: %d", errno);
 		return FAIL;
 	}
 

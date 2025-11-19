@@ -7,5 +7,6 @@ void cl_free(void *ptr);
 #define FREE(ptr) cl_free(ptr)
 void cl_iter_objs();
 uint32_t cl_allocing_cnt();
+size_t cl_allocing_bytes();
 
 #endif
