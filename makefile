@@ -21,6 +21,7 @@ SRCS := comm/alloc.c \
 		log/log.c \
 		sys/timer.c \
 		sys/sh.c \
+		sys/thrdpool.c \
 		main.c
 
 OBJS := $(SRCS:.c=.o)

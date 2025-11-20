@@ -22,6 +22,7 @@
 #include "cl_rsa.h"
 #include "cl_klciph.h"
 #include "cl_bytes.h"
+#include "cl_thrdpool.h"
 
 TAG = "test";
 
@@ -1003,6 +1004,24 @@ static void test_cipher()
 
 
 /******************************************
+ **            thrdpool begin            **
+ ******************************************/
+static void test_thrdpol()
+{
+	const size_t alcnt1 = cl_allocing_cnt();
+	LOG("1. Basical create thread-pool");
+	int id = cl_trpo_create(10, NULL);
+	LOG(" id of thrd-pol: %d", id);
+	assert(id != -1);
+
+	const size_t alcnt2 = cl_allocing_cnt();
+	assert(alcnt1 == alcnt2);
+
+	DONE;
+}
+
+
+/******************************************
  **             testing menu             **
  ******************************************/
 static void test()
@@ -1014,6 +1033,7 @@ static void test()
 	//test_sh();
 	//test_cfg();
 	//test_cipher();
+	test_thrdpol();
 }
 
 int main()

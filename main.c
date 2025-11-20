@@ -14,6 +14,7 @@
 #include "timer.h"
 #include "_rsa.h"
 #include "_alloc.h"
+#include "_thrdpool.h"
 
 TAG = TAG_PREFIX "main";
 
@@ -45,6 +46,7 @@ Ret cl_init(print_fun pfun)
 	INIT(evt);
 	INIT(timer);
 	INIT(rsa);
+	INIT(trpo);
 
 	s_init = true;
 	cl_log(CL_INFO, cltag, "libccll initialized");
@@ -57,6 +59,7 @@ void cl_deinit()
 	TRACE();
 	s_init = false;
 	s_prtfun = NULL;
+	DEINIT(trpo);
 	DEINIT(rsa);
 	DEINIT(timer);
 	DEINIT(evt);
