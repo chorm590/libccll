@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -15,11 +16,23 @@
 
 TAG = TAG_PREFIX "thrdpool";
 
+typedef (*work_fun)(void *args);
+typedef struct {
+	work_fun wkfn;
+	CLIST list;
+} WorkFun;
+
+typedef struct {
+	pthread_t ptrdt;
+	sem_t smp;
+	CLIST wkfn_list; // list head of WorkFun
+} PolThrd;
+
 typedef struct {
 	int id;
 	char name[17];
 	int amt;
-	pthread_t *thrdts;
+	PolThrd *pts;
 	CLIST list;
 } Pool;
 static CRE_LIST_HEAD(g_li_pols);
@@ -68,8 +81,58 @@ static int _cre_pol_id()
 	return id;
 }
 
-static Ret _cre_thrds(pthread_t *trdts, int amt)
+static void * _worker_thread(void *ptr)
 {
+	PolThrd *potr = (PolThrd *) ptr;
+
+	while(true)
+	{
+		sem_wait(&potr->smp);
+	}
+
+	return NULL;
+}
+
+static Ret _cre_thrds(PolThrd *ptr, int amt)
+{
+	int i = 0;
+	// Init the mutex and sem_t
+	for(; i < amt; i++)
+	{
+		if(pthread_mutex_init(&(ptr + i)->ptrdt, NULL))
+		{
+			CLOGE("[%d] init mutex failed, err: %d", i, errno);
+			for(i--; i > -1; i--)
+				if(pthread_mutex_destroy(&(ptr + i)->ptrdt))
+					CLOGE("[%d] deinit mutex failed, err: %d", i, errno);
+			return FAIL;
+		}
+		init_list_node(&(ptr + i)->wkfn_list);
+		if(sem_init(&(ptr + i)->smp, 0, 0))
+		{
+			CLOGE("[%d] init sem_t failed, err: %d", i, errno);
+			for(i--; i > -1; i--)
+			{
+				if(pthread_mutex_destroy(&(ptr + i)->ptrdt))
+					CLOGE("[%d] deinit mutex failed, err: %d", i, errno);
+				if(sem_destroy(&(ptr + i)->smp))
+					CLOGE("[%d] destroy sem_t failed, err: %d", i, errno);
+			}
+			return FAIL;
+		}
+	}
+
+	// Create the sub-threads
+	for(i = 0; i < amt; i++)
+	{
+		if(pthread_create(&(ptr + i)->ptrdt, NULL, _worker_thread, ptr + i))
+		{
+			CLOGE("[%d] cre thread failed, err: %d", i, errno);
+			return FAIL;
+		}
+	}
+	
+
 	return SUCC;
 }
 
@@ -106,26 +169,25 @@ int cl_trpo_create(int amount, const char *name)
 	if(name && *name != 0) sprintf(pool->name, "%s", name);
 	else sprintf(pool->name, DEF_TRPO_NAME);
 	pool->amt = amount;
-	pool->thrdts = (pthread_t *) MALLOC(sizeof(pthread_t) * amount);
+	pool->pts = (PolThrd *) MALLOC(sizeof(PolThrd) * amount);
 
-	if(_cre_thrds(pool->thrdts, pool->amt) != SUCC)
+	if(_cre_thrds(pool->pts, pool->amt) != SUCC)
 	{
 		CLOGE("cre thread failed");
-		FREE(pool->thrdts);
-		pool->thrdts = NULL;
+		FREE(pool->pts); // don't worry about the wkfn_list.
+						 // in cre-fun, that list must be empty!
 		FREE(pool);
-		pool = NULL;
 		pthread_mutex_unlock(&g_mtx_pols);
 		return -1;
 	}
 
-	if(pool) list_add(&pool->list, &g_li_pols);
+	list_add(&pool->list, &g_li_pols);
 
 	if(pthread_mutex_unlock(&g_mtx_pols))
 	{
 		CLOGE("unlock failed, err: %s", strerror(errno));
-		if(pool && pool->thrdts) FREE(pool->thrdts);
-		if(pool) FREE(pool);
+		FREE(pool->pts);
+		FREE(pool);
 		return -1;
 	}
 
@@ -162,11 +224,12 @@ void cl_trpo_destroy(int id)
 		int i = 0;
 		for(; i < pool->amt; i++)
 		{
-			pthread_join(*(pool->thrdts + i), NULL);
+			// TODO
+			pthread_join((pool->pts + i)->ptrdt, NULL);
 		}
 
 		// 2. free pthread_t
-		FREE(pool->thrdts);
+		FREE(pool->pts);
 
 		// 3. free Pool
 		FREE(pool);
