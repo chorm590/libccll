@@ -90,7 +90,10 @@ static int _cre_pol_id()
 
 static void * _worker_thread(void *ptr)
 {
-	PolThrd *cur = (PolThrd *) ptr;
+	int id = ((CLTrPoArg *) ptr)->thrd_id;
+	PolThrd *cur = (PolThrd *) ((CLTrPoArg *) ptr)->args;
+	CLOGD("worker-thrd %d running, %p", id, cur);
+	FREE(ptr);
 	__atomic_fetch_add(cur->run_pt, 1, __ATOMIC_RELAXED);
 
 	while(true)
@@ -129,7 +132,11 @@ static void * _worker_thread(void *ptr)
 		// 3. Execute it and then remove it
 		if(wf)
 		{
-			if(wf->wkfn) wf->wkfn(wf->args);
+			CLTrPoArg args = {
+				.thrd_id = id,
+				.args = wf->args
+			};
+			if(wf->wkfn) wf->wkfn(&args);
 			CL_LOCK(&cur->mtx);
 			list_del(&wf->list);
 			CL_UNLOCK(&cur->mtx);
@@ -167,7 +174,10 @@ static Ret _cre_thrds(PolThrd *ptr, int amt, int *run_pt)
 	// Create the sub-threads
 	for(i = 0; i < amt; i++)
 	{
-		if(pthread_create(&(ptr + i)->ptrdt, NULL, _worker_thread, ptr + i))
+		CLTrPoArg *arg = (CLTrPoArg *) MALLOC(sizeof(CLTrPoArg));
+		arg->thrd_id = i;
+		arg->args = ptr + i;
+		if(pthread_create(&(ptr + i)->ptrdt, NULL, _worker_thread, arg))
 		{
 			CLOGE("[%d] cre thread failed, err: %d", i, errno);
 			exit(1);

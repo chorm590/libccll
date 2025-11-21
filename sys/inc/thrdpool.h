@@ -18,7 +18,17 @@ int cl_trpo_create(int amount, const char *name);
  * */
 void cl_trpo_destroy(int id);
 
-typedef void (*work_fun)(void *args);
+typedef struct {
+	int thrd_id;
+	void *args; // from 'cl_trpo_post' param 3
+} CLTrPoArg;
+
+/*
+ * @param args
+ * 		  No need to free the 'args', but you may free the 'args->args',
+ * 		  that's your data you posted.
+ * */
+typedef void (*work_fun)(CLTrPoArg *args);
 
 /*
  * Post a worker fun, the 'fun' will be execute in a random sub-thread in pool

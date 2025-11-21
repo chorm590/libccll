@@ -37,6 +37,11 @@ INCS := -Icomm/inc \
 		-Isys/inc \
 		-Iinc
 
+#
+# Debug option
+#CFLAGS_C += -g
+#CFLAGS_L += -g
+
 OBJ_DIR := out/obj
 OBJS_C := $(addprefix $(OBJ_DIR)/, $(OBJS))
 

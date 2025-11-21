@@ -1007,10 +1007,12 @@ static void test_cipher()
 /******************************************
  **            thrdpool begin            **
  ******************************************/
-static void _trpo_wk_fun(void *args)
+static void _trpo_wk_fun(CLTrPoArg *args)
 {
-	const int num = *((int *) args);
-	LOG("hi~ %d", num);
+	CLTrPoArg *arg = (CLTrPoArg *) args;
+	const int id = arg->thrd_id;
+	const int num = *((int *) arg->args);
+	LOG("hi~ %d at %d", num, id);
 	SLEEP_MS(765);
 	LOG("bye! %d", num);
 }
@@ -1106,7 +1108,7 @@ static void test()
 	//test_sh();
 	//test_cfg();
 	//test_cipher();
-	test_thrdpol();
+	//test_thrdpol();
 }
 
 int main()
