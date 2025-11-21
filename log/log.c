@@ -48,7 +48,7 @@ void cl_log(CL_LogType type, const char *tag, const char* msg, ...)
 	if(pthread_mutex_lock(&g_lock))
 	{
 		fprintf(stderr, "lock for log failed, err: %d", errno);
-		return;
+		exit(124);
 	}
 
 	va_list args;
@@ -62,7 +62,7 @@ void cl_log(CL_LogType type, const char *tag, const char* msg, ...)
 	if(pthread_mutex_unlock(&g_lock))
 	{
 		fprintf(stderr, "unlock for log failed, err: %d", errno);
-		exit(-1);
+		exit(125);
 	}
 }
 

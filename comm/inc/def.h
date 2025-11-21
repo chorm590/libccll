@@ -19,6 +19,18 @@ typedef enum {
 		const typeof(((type *) 0)->member) *__mptr = (ptr); \
 		(type *) ((char *) __mptr - offsetof(type, member)); \
 		})
+#define CL_LOCK(mtx_pthrd) \
+	if(pthread_mutex_lock((mtx_pthrd))) \
+	{ \
+		CLOGE("lock with mtx failed, err: %d", errno); \
+		exit(124); \
+	}
+#define CL_UNLOCK(mtx_pthrd) \
+	if(pthread_mutex_unlock((mtx_pthrd))) \
+	{ \
+		CLOGE("unlock with mtx failed, err: %d", errno); \
+		exit(125); \
+	}
 
 #define CL_PURE_PRT   "\e[0m"
 

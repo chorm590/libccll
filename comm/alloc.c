@@ -51,9 +51,9 @@ void * cl_malloc(const char *fun, const int line_no, const char *tag, int size_o
 	obj->tick = time(NULL);
 	obj->addr = new_mem;
 	obj->size = size_on_bytes;
-	pthread_mutex_lock(&g_mtx_objs);
+	CL_LOCK(&g_mtx_objs);
 	list_add(&obj->list, &g_li_objs);
-	pthread_mutex_unlock(&g_mtx_objs);
+	CL_UNLOCK(&g_mtx_objs);
 
 	memset(new_mem, 0, size_on_bytes);
 
@@ -65,7 +65,7 @@ void cl_free(void *ptr)
 	if(ptr == NULL) return;
 
 	Obj *pos;
-	pthread_mutex_lock(&g_mtx_objs);
+	CL_LOCK(&g_mtx_objs);
 	list_for_each_entry(pos, &g_li_objs, list)
 	{
 		if(pos->addr == ptr)
@@ -73,11 +73,11 @@ void cl_free(void *ptr)
 			free(ptr);
 			list_del(&pos->list);
 			free(pos);
-			pthread_mutex_unlock(&g_mtx_objs);
+			CL_UNLOCK(&g_mtx_objs);
 			return;
 		}
 	}
-	pthread_mutex_unlock(&g_mtx_objs);
+	CL_UNLOCK(&g_mtx_objs);
 
 	CLOGW("wild-ptr is freeing");
 	free(ptr);
@@ -87,7 +87,7 @@ void cl_iter_objs()
 {
 #define PRT CLOGD
 	PRT("Iterating the objs allocated:");
-	pthread_mutex_lock(&g_mtx_objs);
+	CL_LOCK(&g_mtx_objs);
 	PRT("  count: %d", list_size(&g_li_objs));
 	Obj *pos;
 	list_for_each_entry(pos, &g_li_objs, list)
@@ -95,29 +95,29 @@ void cl_iter_objs()
 		PRT("  %ld [%s] %s+%d: addr: %p, size: %ld", pos->tick, pos->tag, pos->fun, pos->line, pos->addr, pos->size);
 	}
 	PRT("  ----");
-	pthread_mutex_unlock(&g_mtx_objs);
+	CL_UNLOCK(&g_mtx_objs);
 #undef PRT
 }
 
 uint32_t cl_allocing_cnt()
 {
-	pthread_mutex_lock(&g_mtx_objs);
+	CL_LOCK(&g_mtx_objs);
 	const size_t cnt = list_size(&g_li_objs);
-	pthread_mutex_unlock(&g_mtx_objs);
+	CL_UNLOCK(&g_mtx_objs);
 
 	return cnt;
 }
 
 size_t cl_allocing_bytes()
 {
-	pthread_mutex_lock(&g_mtx_objs);
+	CL_LOCK(&g_mtx_objs);
 	size_t bytes = 0;
 	Obj *obj;
 	list_for_each_entry(obj, &g_li_objs, list)
 	{
 		bytes += obj->size;
 	}
-	pthread_mutex_unlock(&g_mtx_objs);
+	CL_UNLOCK(&g_mtx_objs);
 
 	return bytes;
 }

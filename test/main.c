@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/sysinfo.h>
 #include <unistd.h>
 #include <openssl/rsa.h>
 
@@ -1006,15 +1007,87 @@ static void test_cipher()
 /******************************************
  **            thrdpool begin            **
  ******************************************/
+static void _trpo_wk_fun(void *args)
+{
+	const int num = *((int *) args);
+	LOG("hi~ %d", num);
+	SLEEP_MS(765);
+	LOG("bye! %d", num);
+}
+
 static void test_thrdpol()
 {
 	const size_t alcnt1 = cl_allocing_cnt();
-	LOG("1. Basical create thread-pool");
-	int id = cl_trpo_create(10, NULL);
+	const int max_amt = get_nprocs_conf() << 2/*refer to thrdpool.MAX_THRD_CNT_SHIFT_BIT*/;
+	LOG("max sub-thrd amount: %d", max_amt);
+	const char *name = "nametrpo";
+	int id;
+
+	LOG("1. Invalid param for create");
+	assert(cl_trpo_create(0, NULL) == -1);
+	assert(cl_trpo_create(max_amt + 1, NULL) == -1);
+	assert(cl_trpo_create(0, name) == -1);
+	assert(cl_trpo_create(max_amt + 1, name) == -1);
+
+
+	LOG("2. Basical create thread-pool");
+	id = cl_trpo_create(10, NULL);
 	LOG(" id of thrd-pol: %d", id);
 	assert(id != -1);
+	cl_trpo_destroy(id);
+	assert(alcnt1 == cl_allocing_cnt());
+	LOG(" creating max-amt pol-thrd");
+	id = cl_trpo_create(max_amt, NULL);
+	assert(id != -1);
+	cl_trpo_destroy(id);
+	assert(alcnt1 == cl_allocing_cnt());
 
+
+	LOG("3. Sub-thread limits test");
+	LOG(" creating max-amt pol-thrd");
+	id = cl_trpo_create(max_amt, name);
+	assert(id != -1);
+	LOG(" creating one more pol-thrd");
+	assert(cl_trpo_create(1, name) == -1);
+	cl_trpo_destroy(id);
+	assert(alcnt1 == cl_allocing_cnt());
+
+
+	LOG("4. Repeat creating");
+	LOG(" creating max-amt pol-thrd");
+	id = cl_trpo_create(max_amt, name);
+	assert(id != -1);
+	LOG(" creating one more pol-thrd");
+	assert(cl_trpo_create(1, name) == -1);
+	LOG(" destroy the allocated pol-thrd");
+	cl_trpo_destroy(id);
+	assert(alcnt1 == cl_allocing_cnt());
+	LOG(" creating max-amt pol-thrd again");
+	id = cl_trpo_create(max_amt, name);
+	assert(id != -1);
+	cl_trpo_destroy(id);
+	assert(alcnt1 == cl_allocing_cnt());
+
+
+	LOG("5. Post work thread");
+	id = cl_trpo_create(4, NULL);
+	assert(id != -1);
+	int arg1 = 1, arg2 = 2, arg3 = 3, arg4 = 4, arg5 = 5, arg6 = 6;
+	assert(cl_trpo_post(id, _trpo_wk_fun, &arg1) == SUCC);
+	assert(cl_trpo_post(id, _trpo_wk_fun, &arg2) == SUCC);
+	assert(cl_trpo_post(id, _trpo_wk_fun, &arg3) == SUCC);
+	assert(cl_trpo_post(id, _trpo_wk_fun, &arg4) == SUCC);
+	assert(cl_trpo_post(id, _trpo_wk_fun, &arg5) == SUCC);
+	assert(cl_trpo_post(id, _trpo_wk_fun, &arg6) == SUCC);
+	SLEEP(4);
+	LOG(" destroying the pool: %d", id);
+	cl_trpo_destroy(id);
+	assert(alcnt1 == cl_allocing_cnt());
+
+
+	LOG("6. Memory clear test");
 	const size_t alcnt2 = cl_allocing_cnt();
+	LOG(" alcnt1: %ld, alcnt2: %ld", alcnt1, alcnt2);
 	assert(alcnt1 == alcnt2);
 
 	DONE;

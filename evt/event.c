@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdlib.h>
 #include <errno.h>
 #include <pthread.h>
 #include <semaphore.h>
@@ -72,11 +73,8 @@ void cl_evt_deinit()
 Ret cl_evt_pub(uint16_t evt_no, void *data, cl_evt_free free_fun)
 {
 	TRACE();
-	if(pthread_mutex_lock(&l_mtx_evt))
-	{
-		CLOGE("lock for pub-evt failed");
-		return FAIL;
-	}
+
+	CL_LOCK(&l_mtx_evt);
 
 	Ret ret = SUCC;
 	CL_EVT *new_evt = MALLOC(sizeof(CL_EVT));
@@ -92,11 +90,7 @@ Ret cl_evt_pub(uint16_t evt_no, void *data, cl_evt_free free_fun)
 	list_add(&new_evt->list, &l_li_evt);
 
 UNLOCK7414:
-	if(pthread_mutex_unlock(&l_mtx_evt))
-	{
-		CLOGE("unlock for pub-evt failed");
-		return FAIL;
-	}
+	CL_UNLOCK(&l_mtx_evt);
 
 	if(ret == SUCC) sem_post(&l_sm_evt);
 
@@ -112,11 +106,7 @@ Ret cl_evt_sub(uint16_t evt_no, cl_evt_cb callback)
 		return FAIL;
 	}
 
-	if(pthread_mutex_lock(&l_mtx_sub))
-	{
-		CLOGE("lock for sub-evt failed, err: %d", errno);
-		return FAIL;
-	}
+	CL_LOCK(&l_mtx_sub);
 
 	CL_EVT_LSNR *lsnr;
 	list_for_each_entry(lsnr, &l_li_lsnrs, list)
@@ -144,11 +134,7 @@ Ret cl_evt_sub(uint16_t evt_no, cl_evt_cb callback)
 	CLOGD("new subscriber %d registered", new_lsnr->no);
 
 UNLOCK1146:
-	if(pthread_mutex_unlock(&l_mtx_sub))
-	{
-		CLOGE("unlock for sub-evt failed, err: %d", errno);
-		return FAIL;
-	}
+	CL_UNLOCK(&l_mtx_sub);
 
 	return SUCC;
 }
@@ -162,11 +148,7 @@ Ret cl_evt_unsub(uint16_t evt_no, cl_evt_cb callback)
 		return FAIL;
 	}
 
-	if(pthread_mutex_lock(&l_mtx_sub))
-	{
-		CLOGE("lock for unsub-evt failed, err: %d", errno);
-		return FAIL;
-	}
+	CL_LOCK(&l_mtx_sub);
 
 	CL_EVT_LSNR *lsnr = NULL;
 	Bool found = false;
@@ -186,11 +168,7 @@ Ret cl_evt_unsub(uint16_t evt_no, cl_evt_cb callback)
 		CLOGD("subscribe %d removed", evt_no);
 	}
 
-	if(pthread_mutex_unlock(&l_mtx_sub))
-	{
-		CLOGE("unlock for unsub-evt failed, err: %d", errno);
-		return FAIL;
-	}
+	CL_UNLOCK(&l_mtx_sub);
 
 	return found ? SUCC : FAIL;
 }
@@ -203,11 +181,7 @@ static void * _evt_thread(void *data)
 		// 1. wait the signal
 		sem_wait(&l_sm_evt);
 
-		if(pthread_mutex_lock(&l_mtx_evt))
-		{
-			CLOGE("lock the evt-thrd failed, err: %d", errno);
-			break;
-		}
+		CL_LOCK(&l_mtx_evt);
 
 		// 2. popup an event
 		CL_EVT *evt = NULL;
@@ -217,11 +191,7 @@ static void * _evt_thread(void *data)
 			list_del(&evt->list);
 		}
 
-		if(pthread_mutex_unlock(&l_mtx_evt))
-		{
-			CLOGE("unlock the evt-thrd failed, err: %d", errno);
-			break;
-		}
+		CL_UNLOCK(&l_mtx_evt);
 
 		// 3. notify the listeners
 		if(evt)
