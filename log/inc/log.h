@@ -13,5 +13,17 @@ void cl_log(CL_LogType type, const char *tag, const char* msg, ...);
 #define CLOGE(fmt, args...) cl_log(CL_ERROR, CL_TAG, fmt, ##args)
 #define TRACE() CLOGD(">>> %s", __FUNCTION__)
 
+
+
+#ifdef DISABLE_TRACE
+#undef TRACE
+#define TRACE() ;
+#endif
+
+#ifdef DISABLE_CLOGD
+#undef CLOGD
+#define CLOGD(fmt, args...) ;
+#endif
+
 #endif
 

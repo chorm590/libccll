@@ -14,8 +14,7 @@
 #include "alloc.h"
 
 TAG = TAG_PREFIX "klciph";
-#undef TRACE
-#define TRACE() ;
+#define DISABLE_TRACE
 
 #define DBG 0 // Print the running log
 
@@ -149,11 +148,11 @@ AGAIN3439:
 	return idx;
 }
 
-static void _put_data(const uint8_t *data, const int from, const int idx, const uint8_t key1, const uint8_t key2, uint8_t *bucket, uint8_t *buffer)
+static void _put_data(const uint8_t *data, const int len, const int from, const int idx, const uint8_t key1, const uint8_t key2, uint8_t *bucket, uint8_t *buffer)
 {
 	const Bool parity = from & 1;
 #if DBG
-	int a, b, c, d;
+	int a = -1, b = -1, c = -1, d = -1;
 #endif
 
 	int idx2 = idx;
@@ -163,6 +162,7 @@ static void _put_data(const uint8_t *data, const int from, const int idx, const 
 	a = idx2;
 #endif
 	idx2++;
+	if(len == 1) goto PUT_END1407;
 
 	if(idx2 == 256) idx2 = 0;
 	*(buffer + idx2) = parity ? *(data + 1) ^ key2 : *(data + 1) ^ key1;
@@ -171,6 +171,7 @@ static void _put_data(const uint8_t *data, const int from, const int idx, const 
 	b = idx2;
 #endif
 	idx2++;
+	if(len == 2) goto PUT_END1407;
 
 	if(idx2 == 256) idx2 = 0;
 	*(buffer + idx2) = parity ? *(data + 2) ^ key2 : *(data + 2) ^ key1;
@@ -179,6 +180,7 @@ static void _put_data(const uint8_t *data, const int from, const int idx, const 
 	c = idx2;
 #endif
 	idx2++;
+	if(len == 3) goto PUT_END1407;
 
 	if(idx2 == 256) idx2 = 0;
 	*(buffer + idx2) = parity ? *(data + 3) ^ key2 : *(data + 3) ^ key1;
@@ -187,6 +189,8 @@ static void _put_data(const uint8_t *data, const int from, const int idx, const 
 	d = idx2;
 #endif
 	idx2++;
+
+PUT_END1407:;
 
 #if DBG
 {
@@ -494,7 +498,7 @@ Ret klciph_enc(uint8_t *plain, int plen, uint8_t *cipher, int *clen)
 		CLOGD("idx: %d", idx);
 #endif
 		buffer[from] = ((from & 1) == 1) ? idx ^ key1 : idx ^ key2;
-		_put_data(plain + (i << 2), from, idx, key1, key2, bucket, buffer);
+		_put_data(plain + (i << 2), plen - (i << 2), from, idx, key1, key2, bucket, buffer);
 	}
 }
 
