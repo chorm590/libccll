@@ -24,6 +24,7 @@
 #include "cl_klciph.h"
 #include "cl_bytes.h"
 #include "cl_thrdpool.h"
+#include "cl_times.h"
 
 TAG = "test";
 
@@ -77,11 +78,78 @@ line3   \n\
 	DONE;
 }
 
+static void test_times()
+{
+	LTRACE();
+	time_t tt;
+	const char *t1 = "2025-11-25 22:29:00";
+	const char *t2 = "2025-11-25 22:29:59";
+	const char *t3 = "2025-11-25 22:00:00";
+	const char *t4 = "2025-11-25 22:59:00";
+	const char *t5 = "2025-11-25 00:29:00";
+	const char *t6 = "2025-11-25 23:29:00";
+	const char *t7 = "2025-12-01 23:29:00";
+	const char *t8 = "2025-11-30 23:29:00";
+	const char *t9 = "2025-01-25 23:29:00";
+	const char *t10 = "2025-12-25 23:29:00";
+	const char *t11 = "1970-11-25 23:29:00";
+	const char *t12 = "2099-11-25 23:29:00";
+	const char *t13 = "1970-01-01 00:00:00";
+	const char *t14 = "1969-01-01 00:00:00";
+
+	LOG("1. time str2int1");
+	tt = (time_t) -1;
+	assert(cl_time_str2int1(t1, &tt) == SUCC);
+	LOG(" [ 1]time_t: %ld", tt);
+	tt = (time_t) -1;
+	assert(cl_time_str2int1(t2, &tt) == SUCC);
+	LOG(" [ 2]time_t: %ld", tt);
+	tt = (time_t) -1;
+	assert(cl_time_str2int1(t3, &tt) == SUCC);
+	LOG(" [ 3]time_t: %ld", tt);
+	tt = (time_t) -1;
+	assert(cl_time_str2int1(t4, &tt) == SUCC);
+	LOG(" [ 4]time_t: %ld", tt);
+	tt = (time_t) -1;
+	assert(cl_time_str2int1(t5, &tt) == SUCC);
+	LOG(" [ 5]time_t: %ld", tt);
+	tt = (time_t) -1;
+	assert(cl_time_str2int1(t6, &tt) == SUCC);
+	LOG(" [ 6]time_t: %ld", tt);
+	tt = (time_t) -1;
+	assert(cl_time_str2int1(t7, &tt) == SUCC);
+	LOG(" [ 7]time_t: %ld", tt);
+	tt = (time_t) -1;
+	assert(cl_time_str2int1(t8, &tt) == SUCC);
+	LOG(" [ 8]time_t: %ld", tt);
+	tt = (time_t) -1;
+	assert(cl_time_str2int1(t9, &tt) == SUCC);
+	LOG(" [ 9]time_t: %ld", tt);
+	tt = (time_t) -1;
+	assert(cl_time_str2int1(t10, &tt) == SUCC);
+	LOG(" [10]time_t: %ld", tt);
+	tt = (time_t) -1;
+	assert(cl_time_str2int1(t11, &tt) == SUCC);
+	LOG(" [11]time_t: %ld", tt);
+	tt = (time_t) -1;
+	assert(cl_time_str2int1(t12, &tt) == SUCC);
+	LOG(" [12]time_t: %ld", tt);
+	tt = (time_t) -1;
+	assert(cl_time_str2int1(t13, &tt) == SUCC);
+	LOG(" [13]time_t: %ld", tt);
+	tt = (time_t) -1;
+	assert(cl_time_str2int1(t14, &tt) == FAIL);
+	LOG(" [14]time_t: %ld", tt);
+
+	DONE;
+}
+
 static void test_common()
 {
 	LTRACE();
 	test_alloc();
 	test_txt();
+	test_times();
 }
 
 /******************************************

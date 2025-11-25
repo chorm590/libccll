@@ -14,6 +14,7 @@ AR := $(CROSS_COMPILE)ar
 SRCS := comm/alloc.c \
 		comm/txt.c \
 		comm/bytes.c \
+		comm/times.c \
 		cfg/ini.c \
 		cipher/rsa.c \
 		cipher/klciph.c \
