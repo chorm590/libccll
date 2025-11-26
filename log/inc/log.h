@@ -4,7 +4,7 @@
 void cl_log(CL_LogType type, const char *tag, const char* msg, ...);
 
 #define CL_TAG cltag // Each .c file that include this header must defined a char * variable named 'cltag'
-				  // Eg: const static char *cltag = "my-tag";
+					 // Eg: const static char *cltag = "my-tag";
 #define TAG const static char *cltag
 
 #define CLOGD(fmt, args...) cl_log(CL_DEBUG, CL_TAG, fmt, ##args)

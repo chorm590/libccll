@@ -38,10 +38,13 @@ INCS := -Icomm/inc \
 		-Isys/inc \
 		-Iinc
 
+RELEASE_VER ?= debug
 #
 # Debug option
-#CFLAGS_C += -g
-#CFLAGS_L += -g
+ifeq ($(RELEASE_VER),debug)
+CFLAGS_C += -g
+CFLAGS_L += -g
+endif
 
 OBJ_DIR := out/obj
 OBJS_C := $(addprefix $(OBJ_DIR)/, $(OBJS))
@@ -52,14 +55,14 @@ all: clean env ext_lib $(OBJS)
 	@echo "installing the includes..."
 	@for hdr in $$(find . -type f ! -name "_*" | grep "\.h$$"); \
 		do \
-			cp $$hdr out/include/cl_$$(basename $$hdr); \
+			cp $$hdr out/inc/cl_$$(basename $$hdr); \
 		done
 	@echo -e "\e[32mmake done\e[0m"
 
 env:
 	@echo "making enviroment"
 	@if [ ! -d out ]; then mkdir out; fi
-	@if [ ! -d out/include ]; then mkdir out/include; fi
+	@if [ ! -d out/inc ]; then mkdir out/inc; fi
 	@if [ ! -d out/lib ]; then mkdir out/lib; fi
 	@if [ ! -d out/etc ]; then mkdir out/etc; fi
 
@@ -82,7 +85,7 @@ clean:
 test: all
 	@echo "making testing..."
 	@if [ ! -d out/test ]; then mkdir out/test; fi
-	$(CC) -o out/test/test test/main.c -Iout/include -Lout/lib -lccll
+	$(CC) -o out/test/test test/main.c -Iout/inc -Lout/lib -lccll
 	@echo "test make done"
 
 runtest:
