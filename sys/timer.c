@@ -13,6 +13,7 @@
 #include "def.h"
 #include "log_type.h"
 #include "_log.h"
+#define DISABLE_TRACE
 #include "log.h"
 #include "_timer.h"
 #include "timer.h"

@@ -11,9 +11,9 @@ typedef void (*cl_timer_cb)();
  * Start a new timer.
  * 
  * @param sec
- * 		  The seconds period
+ * 		  The seconds period, [0, 28800].
  * @param ms
- * 		  The milliseconds period
+ * 		  The milliseconds period, [10, 1000]
  * @param repeats
  * 		  The repeat times, if zero, will repeat forever.
  * @param cb
