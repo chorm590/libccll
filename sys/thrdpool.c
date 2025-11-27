@@ -53,7 +53,7 @@ static int _get_cur_thrd_cnt()
 {
 	int cnt = 0;
 	Pool *pool;
-	list_for_each_entry(pool, &g_li_pols, list)
+	list_for_each2(pool, &g_li_pols, list)
 	{
 		cnt += pool->amt;
 	}
@@ -69,7 +69,7 @@ static int _cre_pol_id()
 	for(; i < 10000; i++)
 	{
 		using = false;
-		list_for_each_entry(pool, &g_li_pols, list)
+		list_for_each2(pool, &g_li_pols, list)
 		{
 			if(pool->id == i)
 			{
@@ -109,7 +109,7 @@ static void * _worker_thread(void *ptr)
 			for(; i < cnt; i++)
 			{
 				WorkFun *wf;
-				list_for_each_entry(wf, &cur->wkfn_list, list)
+				list_for_each2(wf, &cur->wkfn_list, list)
 				{
 					FREE(wf);
 					// Bug: wr->args cannot be free
@@ -123,7 +123,7 @@ static void * _worker_thread(void *ptr)
 		// 2. Get the first enqueue element
 		CL_LOCK(&cur->mtx);
 		WorkFun *wf = NULL;
-		list_for_each_entry(wf, &cur->wkfn_list, list)
+		list_for_each2(wf, &cur->wkfn_list, list)
 		{
 			break;
 		}
@@ -256,7 +256,7 @@ static Pool * _pop_a_pool(int id)
 {
 	Bool found = false;
 	Pool *pool;
-	list_for_each_entry(pool, &g_li_pols, list)
+	list_for_each2(pool, &g_li_pols, list)
 	{
 		if(pool->id == id)
 		{
@@ -313,7 +313,7 @@ void cl_trpo_deinit()
 	for(; i < sz; i++)
 	{
 		Pool *pool;
-		list_for_each_entry(pool, &g_li_pols, list)
+		list_for_each2(pool, &g_li_pols, list)
 		{
 			list_del(&pool->list);
 			_destroy_pol_thrd(pool);
@@ -336,7 +336,7 @@ Ret cl_trpo_post(int id, work_fun fun, void *args)
 	Pool *po;
 	Bool none = true;
 	// Find the Pool
-	list_for_each_entry(po, &g_li_pols, list)
+	list_for_each2(po, &g_li_pols, list)
 	{
 		if(po->id != id) continue;
 

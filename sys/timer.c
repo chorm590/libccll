@@ -204,7 +204,7 @@ static void _add_timer(const int sec, const int ms, const uint32_t repeats, cons
 
 	// Check whether exist
 	Timer *tmr;
-	list_for_each_entry(tmr, &g_li_sock, list)
+	list_for_each2(tmr, &g_li_sock, list)
 	{
 		if(tmr->cb == cb)
 		{
@@ -257,7 +257,7 @@ static void _rmv_timer(const cl_timer_cb cb)
 	}
 
 	Timer *tmr;
-	list_for_each_entry(tmr, &g_li_sock, list)
+	list_for_each2(tmr, &g_li_sock, list)
 	{
 		if(tmr->srv == false && tmr->cb == cb)
 		{
@@ -395,7 +395,7 @@ static void _cli_timer_proc(int fd)
 	}
 
 	Timer *tmr;
-	list_for_each_entry(tmr, &g_li_sock, list)
+	list_for_each2(tmr, &g_li_sock, list)
 	{
 		if(tmr->srv || tmr->fd != fd) continue;
 		if(tmr->cb) tmr->cb();
@@ -421,7 +421,7 @@ static void _cli_timer_proc(int fd)
 static Ret _cre_srv_node(int fd)
 {
 	Timer *tmr;
-	list_for_each_entry(tmr, &g_li_sock, list)
+	list_for_each2(tmr, &g_li_sock, list)
 	{
 		if(tmr->srv)
 		{
@@ -496,7 +496,7 @@ static void * _timer_thread(void *data)
 		{
 			const int fd = (ev_buf + i)->data.fd;
 			Timer *tmr;
-			list_for_each_entry(tmr, &g_li_sock, list)
+			list_for_each2(tmr, &g_li_sock, list)
 			{
 				if(tmr->fd == fd)
 				{
@@ -520,7 +520,7 @@ TMROUT1722:
 	for(i = 0; i < cnt; i++)
 	{
 		Timer *tmr;
-		list_for_each_entry(tmr, &g_li_sock, list)
+		list_for_each2(tmr, &g_li_sock, list)
 		{
 			_epoll_del(tmr->fd);
 			list_del(&tmr->list);

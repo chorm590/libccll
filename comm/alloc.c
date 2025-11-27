@@ -66,7 +66,7 @@ void cl_free(void *ptr)
 
 	Obj *pos;
 	CL_LOCK(&g_mtx_objs);
-	list_for_each_entry(pos, &g_li_objs, list)
+	list_for_each2(pos, &g_li_objs, list)
 	{
 		if(pos->addr == ptr)
 		{
@@ -90,7 +90,7 @@ void cl_iter_objs()
 	CL_LOCK(&g_mtx_objs);
 	PRT("  count: %d", list_size(&g_li_objs));
 	Obj *pos;
-	list_for_each_entry(pos, &g_li_objs, list)
+	list_for_each2(pos, &g_li_objs, list)
 	{
 		PRT("  %ld [%s] %s+%d: addr: %p, size: %ld", pos->tick, pos->tag, pos->fun, pos->line, pos->addr, pos->size);
 	}
@@ -113,7 +113,7 @@ size_t cl_allocing_bytes()
 	CL_LOCK(&g_mtx_objs);
 	size_t bytes = 0;
 	Obj *obj;
-	list_for_each_entry(obj, &g_li_objs, list)
+	list_for_each2(obj, &g_li_objs, list)
 	{
 		bytes += obj->size;
 	}

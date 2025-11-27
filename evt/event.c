@@ -109,7 +109,7 @@ Ret cl_evt_sub(uint16_t evt_no, cl_evt_cb callback)
 	CL_LOCK(&l_mtx_sub);
 
 	CL_EVT_LSNR *lsnr;
-	list_for_each_entry(lsnr, &l_li_lsnrs, list)
+	list_for_each2(lsnr, &l_li_lsnrs, list)
 	{
 		if(lsnr->no == evt_no && lsnr->cb == callback)
 		{
@@ -152,7 +152,7 @@ Ret cl_evt_unsub(uint16_t evt_no, cl_evt_cb callback)
 
 	CL_EVT_LSNR *lsnr = NULL;
 	Bool found = false;
-	list_for_each_entry(lsnr, &l_li_lsnrs, list)
+	list_for_each2(lsnr, &l_li_lsnrs, list)
 	{
 		if(lsnr->no == evt_no && lsnr->cb == callback)
 		{
@@ -197,7 +197,7 @@ static void * _evt_thread(void *data)
 		if(evt)
 		{
 			CL_EVT_LSNR *lsnr;
-			list_for_each_entry(lsnr, &l_li_lsnrs, list)
+			list_for_each2(lsnr, &l_li_lsnrs, list)
 			{
 				if(lsnr->no == evt->no && lsnr->cb(evt->no, evt->data))
 				{

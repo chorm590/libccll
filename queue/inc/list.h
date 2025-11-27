@@ -52,7 +52,7 @@ static inline Bool list_empty(CLIST *head)
 
 static inline size_t list_size(CLIST *head)
 {
-	if(head == NULL) return -1;
+	if(head == NULL) return 0;
 	size_t cnt = 0;
 	CLIST *a = head;
 	int i = 0;
@@ -68,38 +68,44 @@ static inline size_t list_size(CLIST *head)
 	return cnt;
 }
 
-#define list_for_each(pos, head) \
-	for(pos = (head)->next; pos != (head); pos = pos->next)
+#define list_for_each(ptr_pos, ptr_head) \
+	for(ptr_pos = (ptr_head)->next; ptr_pos != (ptr_head); ptr_pos = ptr_pos->next)
 
-#define list_for_each_entry(pos, head, member) \
-	for(pos = container_of((head)->next, typeof(*pos), member); &pos->member != (head); pos = container_of(pos->member.next, typeof(*pos), member))
+#define list_for_each2(ptr_type_pos, ptr_head, member) \
+	for(ptr_type_pos = container_of((ptr_head)->next, typeof(*ptr_type_pos), member); &ptr_type_pos->member != (ptr_head); ptr_type_pos = container_of(ptr_type_pos->member.next, typeof(*ptr_type_pos), member))
 
 /*
- * Popup one node. If succ, 'pos' will point to the elements, or 'pos' will pointer to NULL.
+ * Remove node from list while in interating. Must merge the 'list_for_each' or 'list_for_each2' to using.
+ *
+ * Example:
+ * 	typedef struct {
+ *		int a;
+ *		CLIST list;
+ * 	} Type;
+ * 	CRE_LIST_HEAD(li_tp);
+ *
+ * 	// Usage 1:
+ * 	CLIST *ls;
+ *	list_for_each(ls, &li_tp)
+ *	{
+ *		CLIST *rmv;
+ *		list_pop(ls, rmv);
+ *		free(container_of(rmv, Type, list));
+ *	}
+ *
+ *	// Usage 2:
+ *	Type *tp;
+ *	list_for_each2(tp, &li_tp, list)
+ *	{
+ *		Type *rmv;
+ *		list_pop2(tp, rmv, Type, list);
+ *		free(rmv);
+ *	}
  * */
-#define list_pop(pos, head, member) \
-	pos = NULL; \
-	list_for_each_entry(pos, head, member) \
-	{ \
-		break; \
-	}
+#define list_pop(ptr_node_for_rm, ptr_node_rm) \
+	CLIST *_li4337_a = ptr_node_for_rm->prev; ptr_node_rm = ptr_node_for_rm; list_del(ptr_node_for_rm); ptr_node_for_rm = _li4337_a
 
-typedef void (*list_free_fun)(CLIST *node);
-static inline void list_clear(CLIST *head, list_free_fun free_fun)
-{
-	const size_t sz = list_size(head);
-	int i;
-	for(i = 0; i < sz; i++)
-	{
-		CLIST *node;
-		list_for_each(node, head)
-		{
-			list_del(node);
-			if(free_fun) free_fun(node);
-			break;
-		}
-	}
-}
-
+#define list_pop2(ptr_node_for_rm, ptr_node_rm, type, member) \
+	CLIST *_li4337_a = ptr_node_for_rm->list.prev; ptr_node_rm = ptr_node_for_rm; list_del(&ptr_node_for_rm->list); ptr_node_for_rm = container_of(_li4337_a, type, member)
 
 #endif

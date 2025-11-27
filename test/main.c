@@ -155,7 +155,7 @@ static void test_common()
 /******************************************
  **              queue begin             **
  *****************************************/
-
+#if 0
 static void _emp_free_fun(CLIST *node)
 {
 	typedef struct {
@@ -169,6 +169,7 @@ static void _emp_free_fun(CLIST *node)
 	LOG("freeing %d", emp->id);
 	FREE(emp);
 }
+#endif
 
 static void test_list()
 {
@@ -229,8 +230,9 @@ static void test_list()
 	}
 #undef S
 
-	LOG("2. remove all elements");
+	LOG("2. remove all elements [1]");
 	const uint32_t cnt1 = cl_allocing_cnt();
+	LOG("cnt1: %d", cnt1);
 	CRE_LIST_HEAD(emps2);
 	assert(&emps2 != NULL);
 	assert(emps2.next == &emps2);
@@ -243,25 +245,57 @@ static void test_list()
 		list_add(&emp->list, &emps2);
 		assert(list_size(&emps2) == (i + 1));
 	}
+	assert(list_size(&emps2) == i);
 
+	const uint32_t cnt2 = cl_allocing_cnt();
+	LOG("cnt2: %d", cnt2);
+	CLIST *li_emp1;
+	i = 0;
+	list_for_each(li_emp1, &emps2)
 	{
-		const uint32_t cnt3 = cl_allocing_cnt();
-		LOG("cnt3: %d", cnt3);
-#if 0
-		Employee *emp;
-		list_for_each_entry(emp, &emps2, list)
-		{
-			list_del(&emp->list);
-			FREE(emp);
-		}
-#else
-		list_clear(&emps2, _emp_free_fun);
-#endif
+		CLIST *pop;
+		list_pop(li_emp1, pop);
+		Employee *emp3 = container_of(pop, Employee, list);
+		assert(emp3->id == i++);
+		FREE(emp3);
 	}
 	assert(list_size(&emps2) == 0);
-	const int cnt2 = cl_allocing_cnt();
-	LOG("cnt: %d/%d", cnt1, cnt2);
-	assert(cnt1 == cnt2);
+	const int cnt3 = cl_allocing_cnt();
+	LOG("cnt3: %d/%d", cnt1, cnt3);
+	assert(cnt1 == cnt3);
+
+	LOG("3. remove all elements [2]");
+	const uint32_t cnt4 = cl_allocing_cnt();
+	LOG("cnt4: %d", cnt4);
+	CRE_LIST_HEAD(emps3);
+	assert(&emps3 != NULL);
+	assert(emps3.next == &emps3);
+	assert(emps3.prev == &emps3);
+	for(i = 0; i < 47; i++)
+	{
+		Employee *emp = (Employee *) MALLOC(sizeof(Employee));
+		assert(emp != NULL);
+		emp->id = i;
+		list_add(&emp->list, &emps3);
+		assert(list_size(&emps3) == (i + 1));
+	}
+	assert(list_size(&emps3) == i);
+
+	const uint32_t cnt5 = cl_allocing_cnt();
+	LOG("cnt5: %d", cnt5);
+	Employee *emp3;
+	i = 0;
+	list_for_each2(emp3, &emps3, list)
+	{
+		Employee *pop;
+		list_pop2(emp3, pop, Employee, list);
+		assert(pop->id == i++);
+		FREE(pop);
+	}
+	assert(list_size(&emps3) == 0);
+	const int cnt6 = cl_allocing_cnt();
+	LOG("cnt6: %d/%d", cnt4, cnt6);
+	assert(cnt4 == cnt6);
 
 	DONE;
 }
