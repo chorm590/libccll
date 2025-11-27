@@ -379,7 +379,6 @@ static Bool _srv_timer_proc(int fd)
 
 static void _cli_timer_proc(int fd)
 {
-	CLOGD("timer out: %d", fd);
 	uint64_t val;
 	static size_t sz = sizeof(uint64_t);
 	if(read(fd, &val, sz) != sz)

@@ -6,13 +6,14 @@
 #include "def.h"
 #include "log_type.h"
 #include "_log.h"
+#define DISABLE_TRACE
 #include "log.h"
 #include "ini.h"
 #include "txt.h"
 
 #define MAX_KLEN 64
 #define MAX_SLEN MAX_KLEN
-#define MAX_LINE_BYTE 512
+#define MAX_LINE_BYTE 256
 
 TAG = TAG_PREFIX "lw-ini";
 
