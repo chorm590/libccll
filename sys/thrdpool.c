@@ -329,7 +329,6 @@ void cl_trpo_deinit()
 
 Ret cl_trpo_post(int id, work_fun fun, void *args)
 {
-	TRACE();
 	if(!g_init) return FAIL;
 	CL_LOCK(&g_mtx_pols);
 

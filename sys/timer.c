@@ -226,7 +226,8 @@ static void _add_timer(const int sec, const int ms, const uint32_t repeats, cons
 		CLOGE("cre timer node failed");
 		goto UNLOCK5534;
 	}
-	CLOGI("new timer on, %ds %dms", sec, ms);
+	if(repeats == 0) CLOGI("on, %d.%dms ~", sec, ms);
+	else CLOGI("on, %d.%dms +%d", sec, ms, repeats);
 
 UNLOCK5534:
 	if(pthread_mutex_unlock(&g_mtx_sock))

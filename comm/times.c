@@ -5,7 +5,7 @@
 #include "def.h"
 #include "times.h"
 
-Ret cl_time_str2int1(const char *time_str, time_t *output)
+Ret cl_time_date2sec1(const char *time_str, time_t *output)
 {
 	size_t len = strlen(time_str);
 	if(len != 19) // expected format: 2025-10-13 09:19:09
@@ -79,3 +79,10 @@ Ret cl_time_str2int1(const char *time_str, time_t *output)
 	return *output == (time_t) -1 ? FAIL : SUCC;
 }
 
+void cl_time_sec2date1(const time_t sec, char *time_str)
+{
+	if(sec < 0 || time_str == NULL) return;
+
+	struct tm *a = localtime(&sec);
+	strftime(time_str, 20, "%F %T", a);
+}
