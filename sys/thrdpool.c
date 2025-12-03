@@ -92,7 +92,6 @@ static void * _worker_thread(void *ptr)
 {
 	int id = ((CLTrPoArg *) ptr)->thrd_id;
 	PolThrd *cur = (PolThrd *) ((CLTrPoArg *) ptr)->args;
-	CLOGD("worker-thrd %d running, %p", id, cur);
 	FREE(ptr);
 	__atomic_fetch_add(cur->run_pt, 1, __ATOMIC_RELAXED);
 

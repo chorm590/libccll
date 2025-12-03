@@ -21,7 +21,9 @@ Ret klciph_enc(uint8_t *plain, int plen, uint8_t *cipher, int *clen);
  * @param clen [in]
  * @param plain [out]
  * @param plen [out]
+ * @param max_plen [in]
+ * 		  Valid range: [1 ~ 120]
  * */
-Ret klciph_dec(uint8_t *cipher, int clen, uint8_t *plain, int *plen);
+Ret klciph_dec(uint8_t *cipher, int clen, uint8_t *plain, int *plen, int max_plen);
 
 #endif

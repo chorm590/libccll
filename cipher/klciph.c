@@ -524,7 +524,7 @@ static int _get_next_idx(const int cur_idx)
 #define NEXT() \
 	idx = _get_next_idx(idx)
 
-Ret klciph_dec(uint8_t *cipher, int clen, uint8_t *plain, int *plen)
+Ret klciph_dec(uint8_t *cipher, int clen, uint8_t *plain, int *plen, int max_plen)
 {
 	TRACE();
 	if(cipher == NULL || clen != 256 || plain == NULL || plen == NULL) return FAIL;
@@ -669,6 +669,12 @@ Ret klciph_dec(uint8_t *cipher, int clen, uint8_t *plain, int *plen)
 	if(k != len)
 	{
 		CLOGE("failed737");
+		return FAIL;
+	}
+
+	if(max_plen < k)
+	{
+		CLOGE("buf sz exceed");
 		return FAIL;
 	}
 
