@@ -216,7 +216,7 @@ Ret cl_rsa_to_bytes(RSA *rsa, uint8_t *pub_key_buf, size_t *pbk_len, uint8_t *pr
 	return SUCC;
 }
 
-Ret cl_rsa_enc(RSA *rsa, Bool with_pbk, uint8_t *plain, int plen, uint8_t *cipher, int *clen)
+Ret cl_rsa_enc(RSA *rsa, bool with_pbk, uint8_t *plain, int plen, uint8_t *cipher, int *clen)
 {
 	TRACE();
 	if(rsa == NULL || plain == NULL || cipher == NULL || clen == NULL) return FAIL;
@@ -232,7 +232,7 @@ Ret cl_rsa_enc(RSA *rsa, Bool with_pbk, uint8_t *plain, int plen, uint8_t *ciphe
 	return SUCC;
 }
 
-Ret cl_rsa_dec(RSA *rsa, Bool with_pbk, uint8_t *cipher, int clen, uint8_t *plain, int *plen)
+Ret cl_rsa_dec(RSA *rsa, bool with_pbk, uint8_t *cipher, int clen, uint8_t *plain, int *plen)
 {
 	TRACE();
 	if(rsa == NULL || cipher == NULL || plain == NULL || plen == NULL) return FAIL;

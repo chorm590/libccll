@@ -10,7 +10,7 @@ struct CLEvent {
 	CLIST list;
 };
 
-typedef Bool (*cl_evt_cb)(uint16_t evt_no, void *data);
+typedef bool (*cl_evt_cb)(uint16_t evt_no, void *data);
 
 Ret cl_evt_pub(uint16_t evt_no, void *data, cl_evt_free free_fun);
 Ret cl_evt_sub(uint16_t evt_no, cl_evt_cb cb);

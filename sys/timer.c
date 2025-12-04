@@ -26,7 +26,7 @@ TAG = TAG_PREFIX "timer";
 #define SRV_SKT_PATH "/tmp/l89ixdrb7cyu7c99l00l1a"
 
 typedef struct {
-	Bool srv;
+	bool srv;
 	int fd;
 	uint32_t repeats;
 	cl_timer_cb cb;
@@ -288,7 +288,7 @@ static void _rmv_timer(const cl_timer_cb cb)
  * 		   false
  * 		   		Continue epoll_wait
  * */
-static Bool _srv_timer_proc(int fd)
+static bool _srv_timer_proc(int fd)
 {
 	/*
 		receive(plaintext):

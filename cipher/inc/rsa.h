@@ -64,7 +64,7 @@ Ret cl_rsa_to_bytes(RSA *rsa, uint8_t *pub_key_buf, size_t *pbk_len, uint8_t *pr
  * @param clen [out]
  * 		  The bytes of 'cipher'
  * */
-Ret cl_rsa_enc(RSA *rsa, Bool with_pbk, uint8_t *plain, int plen, uint8_t *cipher, int *clen);
+Ret cl_rsa_enc(RSA *rsa, bool with_pbk, uint8_t *plain, int plen, uint8_t *cipher, int *clen);
 
 /*
  * Decrypt 'cipher' to 'plain' with RSA pub-key or prv-key.
@@ -87,6 +87,6 @@ Ret cl_rsa_enc(RSA *rsa, Bool with_pbk, uint8_t *plain, int plen, uint8_t *ciphe
  * @param plen [out]
  * 		  The bytes of 'plain'
  * */
-Ret cl_rsa_dec(RSA *rsa, Bool with_pbk, uint8_t *cipher, int clen, uint8_t *plain, int *plen);
+Ret cl_rsa_dec(RSA *rsa, bool with_pbk, uint8_t *cipher, int clen, uint8_t *plain, int *plen);
 
 #endif

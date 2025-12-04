@@ -28,7 +28,7 @@ typedef struct {
 	pthread_t ptrdt;
 	pthread_mutex_t mtx;
 	sem_t smp;
-	Bool exit;
+	bool exit;
 	int *run_pt; // refer to Pool.run_pt
 	CLIST wkfn_list; // list head of WorkFun
 } PolThrd;
@@ -43,7 +43,7 @@ typedef struct {
 } Pool;
 static CRE_LIST_HEAD(g_li_pols);
 static pthread_mutex_t g_mtx_pols = PTHREAD_MUTEX_INITIALIZER;
-static Bool g_init = false;
+static bool g_init = false;
 
 #define MAX_THRD_CNT_SHIFT_BIT 2 // max = nprocs << SHIFT_BIT
 #define MAX_THRD_CNT_CRE 256 // maximum thread request at a time
@@ -64,7 +64,7 @@ static int _get_cur_thrd_cnt()
 static int _cre_pol_id()
 {
 	int i = 0, id = -1;
-	Bool using;
+	bool using;
 	Pool *pool;
 	for(; i < 10000; i++)
 	{
@@ -253,7 +253,7 @@ int cl_trpo_create(int amount, const char *name)
 
 static Pool * _pop_a_pool(int id)
 {
-	Bool found = false;
+	bool found = false;
 	Pool *pool;
 	list_for_each2(pool, &g_li_pols, list)
 	{
@@ -332,7 +332,7 @@ Ret cl_trpo_post(int id, work_fun fun, void *args)
 	CL_LOCK(&g_mtx_pols);
 
 	Pool *po;
-	Bool none = true;
+	bool none = true;
 	// Find the Pool
 	list_for_each2(po, &g_li_pols, list)
 	{

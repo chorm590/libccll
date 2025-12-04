@@ -44,7 +44,7 @@ static inline void list_del(CLIST *node)
 	node->next = NULL;
 }
 
-static inline Bool list_empty(CLIST *head)
+static inline bool list_empty(CLIST *head)
 {
 	if(head == NULL) return true;
 	return head->prev == head;

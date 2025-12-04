@@ -18,7 +18,7 @@ TAG = TAG_PREFIX "evt";
 
 static sem_t l_sm_evt; // To indicate the event enqueue and dequeue.
 static pthread_t l_thr_evt; // To manage the events.
-static Bool l_run = false;
+static bool l_run = false;
 static pthread_mutex_t l_mtx_evt; // To synchronize the enqueue and dequeue of event.
 static pthread_mutex_t l_mtx_sub;
 static CRE_LIST_HEAD(l_li_evt); 
@@ -151,7 +151,7 @@ Ret cl_evt_unsub(uint16_t evt_no, cl_evt_cb callback)
 	CL_LOCK(&l_mtx_sub);
 
 	CL_EVT_LSNR *lsnr = NULL;
-	Bool found = false;
+	bool found = false;
 	list_for_each2(lsnr, &l_li_lsnrs, list)
 	{
 		if(lsnr->no == evt_no && lsnr->cb == callback)

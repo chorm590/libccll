@@ -12,7 +12,7 @@
  * @param clen [out]
  * 		  256 in success.
  * */
-Ret klciph_enc(uint8_t *plain, int plen, uint8_t *cipher, int *clen);
+Ret cl_klciph_enc(uint8_t *plain, int plen, uint8_t *cipher, int *clen);
 
 /*
  * Decrypt with rule of klon-cipher.
@@ -24,6 +24,6 @@ Ret klciph_enc(uint8_t *plain, int plen, uint8_t *cipher, int *clen);
  * @param max_plen [in]
  * 		  Valid range: [1 ~ 120]
  * */
-Ret klciph_dec(uint8_t *cipher, int clen, uint8_t *plain, int *plen, int max_plen);
+Ret cl_klciph_dec(uint8_t *cipher, int clen, uint8_t *plain, int *plen, int max_plen);
 
 #endif

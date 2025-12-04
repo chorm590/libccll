@@ -150,7 +150,7 @@ AGAIN3439:
 
 static void _put_data(const uint8_t *data, const int len, const int from, const int idx, const uint8_t key1, const uint8_t key2, uint8_t *bucket, uint8_t *buffer)
 {
-	const Bool parity = from & 1;
+	const bool parity = from & 1;
 #if DBG
 	int a = -1, b = -1, c = -1, d = -1;
 #endif
@@ -213,7 +213,7 @@ PUT_END1407:;
 #endif
 }
 
-Ret klciph_enc(uint8_t *plain, int plen, uint8_t *cipher, int *clen)
+Ret cl_klciph_enc(uint8_t *plain, int plen, uint8_t *cipher, int *clen)
 {
 	TRACE();
 	if(plain == NULL || cipher == NULL || clen == NULL) return FAIL;
@@ -524,7 +524,7 @@ static int _get_next_idx(const int cur_idx)
 #define NEXT() \
 	idx = _get_next_idx(idx)
 
-Ret klciph_dec(uint8_t *cipher, int clen, uint8_t *plain, int *plen, int max_plen)
+Ret cl_klciph_dec(uint8_t *cipher, int clen, uint8_t *plain, int *plen, int max_plen)
 {
 	TRACE();
 	if(cipher == NULL || clen != 256 || plain == NULL || plen == NULL) return FAIL;
@@ -569,7 +569,7 @@ Ret klciph_dec(uint8_t *cipher, int clen, uint8_t *plain, int *plen, int max_ple
 #endif
 {
 	int i;
-	Bool found = false;
+	bool found = false;
 	for(i = 0; i < CH14S_SZ; i++)
 	{
 		if(ch14 == ch14s[i])
