@@ -162,7 +162,7 @@ Ret cl_rsa_to_file(RSA *rsa, const char *pub_key_fn, const char *prv_key_fn)
 	return SUCC;
 }
 
-Ret cl_rsa_to_bytes(RSA *rsa, uint8_t *pub_key_buf, size_t *pbk_len, uint8_t *prv_key_buf, size_t *pvk_len)
+Ret cl_rsa_to_bytes(RSA *rsa, uint8_t *pub_key_buf, int *pbk_len, uint8_t *prv_key_buf, int *pvk_len)
 {
 	TRACE();
 	if(rsa == NULL) return FAIL;
@@ -184,7 +184,7 @@ Ret cl_rsa_to_bytes(RSA *rsa, uint8_t *pub_key_buf, size_t *pbk_len, uint8_t *pr
 			BIO_free(bio_pbk);
 			return FAIL;
 		}
-		const size_t _pbk_len = BIO_ctrl_pending(bio_pbk);
+		const int _pbk_len = BIO_ctrl_pending(bio_pbk);
 		BIO_read(bio_pbk, pub_key_buf, _pbk_len);
 		*pbk_len = _pbk_len;
 		BIO_free(bio_pbk);

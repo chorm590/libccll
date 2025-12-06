@@ -41,7 +41,7 @@ Ret cl_rsa_to_file(RSA *rsa, const char *pub_key_fn, const char *prv_key_fn);
  * @param pvk_len [out]
  * 		  The bytes of prv-key
  * */
-Ret cl_rsa_to_bytes(RSA *rsa, uint8_t *pub_key_buf, size_t *pbk_len, uint8_t *prv_key_buf, size_t *pvk_len);
+Ret cl_rsa_to_bytes(RSA *rsa, uint8_t *pub_key_buf, int *pbk_len, uint8_t *prv_key_buf, int *pvk_len);
 
 /*
  * Encrypt 'plain' to 'cipher' with RSA pub-key or prv-key.
