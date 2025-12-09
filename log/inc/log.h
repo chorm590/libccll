@@ -11,7 +11,7 @@ void cl_log(CL_LogType type, const char *tag, const char* msg, ...);
 #define CLOGI(fmt, args...) cl_log(CL_INFO, CL_TAG, fmt, ##args)
 #define CLOGW(fmt, args...) cl_log(CL_WARN, CL_TAG, fmt, ##args)
 #define CLOGE(fmt, args...) cl_log(CL_ERROR, CL_TAG, fmt, ##args)
-#define TRACE() CLOGD(">>> %s", __FUNCTION__)
+#define TRACE() CLOGD("-> %s", __FUNCTION__)
 
 
 

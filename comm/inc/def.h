@@ -78,8 +78,18 @@ typedef struct {
 
 typedef struct {
 	int len;
+	uint8_t buf[1536];
+} Buf1k5;
+
+typedef struct {
+	int len;
 	uint8_t buf[2048];
 } Buf2k;
+
+typedef struct {
+	int len;
+	uint8_t buf[3072];
+} Buf3k;
 
 typedef struct {
 	int len;
