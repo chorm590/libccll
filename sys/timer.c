@@ -227,7 +227,7 @@ static void _add_timer(const int sec, const int ms, const uint32_t repeats, cons
 		goto UNLOCK5534;
 	}
 	if(repeats == 0) CLOGI("on, %d.%dms ~", sec, ms);
-	else CLOGI("on, %d.%dms +%d", sec, ms, repeats);
+	else CLOGI("on, %ds %dms +%d", sec, ms, repeats);
 
 UNLOCK5534:
 	if(pthread_mutex_unlock(&g_mtx_sock))
