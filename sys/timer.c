@@ -23,7 +23,7 @@
 
 TAG = TAG_PREFIX "timer";
 
-#define SRV_SKT_PATH "/tmp/l89ixdrb7cyu7c99l00l1a"
+#define SRV_SKT_PATH "/tmp/l89ixdrb7cyu7c99l00l1a." MKTYPE
 
 typedef struct {
 	bool srv;
