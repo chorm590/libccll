@@ -23,7 +23,7 @@
 
 TAG = TAG_PREFIX "timer";
 
-#define SRV_SKT_PATH "/tmp/l89ixdrb7cyu7c99l00l1a." MKTYPE
+static char g_srv_sk_path[32];
 
 typedef struct {
 	bool srv;
@@ -44,6 +44,32 @@ static void _timer_destroy();
 
 static int _cre_srv_sock()
 {
+	// Init the srv-sk-path
+	{
+		FILE *fp = fopen("/dev/random", "r");
+		if(fp == NULL)
+		{
+			CLOGE("can't gen the random");
+			return -1;
+		}
+
+		uint8_t buf[8];
+		const int rlen = fread(buf, 1, 8, fp);
+		fclose(fp);
+		if(rlen != 8)
+		{
+			CLOGE("read random failed");
+			return -1;
+		}
+
+		sprintf(g_srv_sk_path, "/tmp/");
+		int i = rlen;
+		while(i--)
+		{
+			sprintf(g_srv_sk_path + strlen(g_srv_sk_path), "%02x", buf[i]);
+		}
+		CLOGI("srv-sk-path: %s", g_srv_sk_path);
+	}
 	struct sockaddr_un server_addr;
 
     int srvfd = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -54,9 +80,9 @@ static int _cre_srv_sock()
 
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sun_family = AF_UNIX;
-    strncpy(server_addr.sun_path, SRV_SKT_PATH, sizeof(server_addr.sun_path) - 1);
+    strncpy(server_addr.sun_path, g_srv_sk_path, sizeof(server_addr.sun_path) - 1);
 
-    unlink(SRV_SKT_PATH);
+    unlink(g_srv_sk_path);
 
     if (bind(srvfd, (struct sockaddr*)&server_addr, sizeof(server_addr)) == -1) {
 		CLOGE("bind socket failed, err: %d", errno);
@@ -109,7 +135,7 @@ static int _conn_srv()
 
 	memset(&srv_addr, 0, sizeof(struct sockaddr_un));
 	srv_addr.sun_family = AF_UNIX;
-	strcpy(srv_addr.sun_path, SRV_SKT_PATH);
+	strcpy(srv_addr.sun_path, g_srv_sk_path);
 
 	SLEEP_MS(100);
 	if(connect(fd, (struct sockaddr *) &srv_addr, sizeof(srv_addr)))
@@ -587,7 +613,7 @@ void cl_timer_deinit()
 	_timer_destroy();
 	pthread_mutex_destroy(&g_mtx_sock);
 	pthread_join(g_thr_socks, NULL);
-    unlink(SRV_SKT_PATH);
+    unlink(g_srv_sk_path);
 }
 
 #define SZ 20

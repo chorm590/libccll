@@ -39,14 +39,10 @@ INCS := -Icomm/inc \
 		-Isys/inc \
 		-Iinc
 
-MK_TYPE ?= alpha
-#
-# Debug option
-ifeq ($(MK_TYPE),alpha)
-CFLAGS_C += -g
-CFLAGS_L += -g
-endif
-CFLAGS_C += -DMKTYPE="\"$(MK_TYPE)\""
+##
+## Debug option
+#CFLAGS_C += -g
+#CFLAGS_L += -g
 
 OBJ_DIR := out/obj
 OBJS_C := $(addprefix $(OBJ_DIR)/, $(OBJS))

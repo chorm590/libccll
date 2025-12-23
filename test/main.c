@@ -900,8 +900,8 @@ static void test_rsa()
 	LOG("3. export RSA to memory");
 	uint8_t pbk_bf1[512];
 	uint8_t pvk_bf1[2048];
-	size_t pbk_len1;
-	size_t pvk_len1;
+	int pbk_len1;
+	int pvk_len1;
 	rsa = NULL;
 	assert(cl_rsa_gen(65537, 2048, &rsa) == SUCC);
 	assert(rsa != NULL);
@@ -910,7 +910,7 @@ static void test_rsa()
 	pbk_len1 = 0;
 	pvk_len1 = 0;
 	assert(cl_rsa_to_bytes(rsa, pbk_bf1, &pbk_len1, pvk_bf1, &pvk_len1) == SUCC);
-	LOG("pbk_len1: %ld, pbk_bf1:\n%s\npvk_len1: %ld, pvk_bf1:\n%s\n", pbk_len1, pbk_bf1, pvk_len1, pvk_bf1);
+	LOG("pbk_len1: %d, pbk_bf1:\n%s\npvk_len1: %d, pvk_bf1:\n%s\n", pbk_len1, pbk_bf1, pvk_len1, pvk_bf1);
 	assert(cl_rsa_to_bytes(rsa, pbk_bf1, NULL, pvk_bf1, &pvk_len1) == FAIL);
 	assert(cl_rsa_to_bytes(rsa, pbk_bf1, &pbk_len1, pvk_bf1, NULL) == FAIL);
 	memset(pbk_bf1, 0, 512);
@@ -918,12 +918,12 @@ static void test_rsa()
 	pbk_len1 = 0;
 	pvk_len1 = 0;
 	assert(cl_rsa_to_bytes(rsa, pbk_bf1, &pbk_len1, NULL, NULL) == SUCC);
-	LOG("pbk_len1: %ld, pbk_bf1:\n%s\npvk_len1: %ld, pvk_bf1:\n%s\n", pbk_len1, pbk_bf1, pvk_len1, pvk_bf1);
+	LOG("pbk_len1: %d, pbk_bf1:\n%s\npvk_len1: %d, pvk_bf1:\n%s\n", pbk_len1, pbk_bf1, pvk_len1, pvk_bf1);
 	cl_rsa_destroy(rsa);
 	uint8_t pbk_bf2[1024];
 	uint8_t pvk_bf2[4096];
-	size_t pbk_len2;
-	size_t pvk_len2;
+	int pbk_len2;
+	int pvk_len2;
 	rsa = NULL;
 	assert(cl_rsa_gen(65537, 4096, &rsa) == SUCC);
 	assert(rsa != NULL);
@@ -932,7 +932,7 @@ static void test_rsa()
 	pbk_len2 = 0;
 	pvk_len2 = 0;
 	assert(cl_rsa_to_bytes(rsa, pbk_bf2, &pbk_len2, pvk_bf2, &pvk_len2) == SUCC);
-	LOG("[1] pbk_len2: %ld, pbk_bf2:\n%s\npvk_len2: %ld, pvk_bf2:\n%s\n", pbk_len2, pbk_bf2, pvk_len2, pvk_bf2);
+	LOG("[1] pbk_len2: %d, pbk_bf2:\n%s\npvk_len2: %d, pvk_bf2:\n%s\n", pbk_len2, pbk_bf2, pvk_len2, pvk_bf2);
 	assert(cl_rsa_to_bytes(rsa, pbk_bf2, NULL, pvk_bf2, &pvk_len2) == FAIL);
 	assert(cl_rsa_to_bytes(rsa, pbk_bf2, &pbk_len2, pvk_bf2, NULL) == FAIL);
 	assert(cl_rsa_to_bytes(rsa, pbk_bf2, NULL, pvk_bf2, NULL) == FAIL);
@@ -941,13 +941,13 @@ static void test_rsa()
 	pbk_len2 = 0;
 	pvk_len2 = 0;
 	assert(cl_rsa_to_bytes(rsa, pbk_bf2, &pbk_len2, NULL, NULL) == SUCC);
-	LOG("[2] pbk_len2: %ld, pbk_bf2:\n%s\npvk_len2: %ld, pvk_bf2:\n%s\n", pbk_len2, pbk_bf2, pvk_len2, pvk_bf2);
+	LOG("[2] pbk_len2: %d, pbk_bf2:\n%s\npvk_len2: %d, pvk_bf2:\n%s\n", pbk_len2, pbk_bf2, pvk_len2, pvk_bf2);
 	memset(pbk_bf2, 0, 1024);
 	memset(pvk_bf2, 0, 4096);
 	pbk_len2 = 0;
 	pvk_len2 = 0;
 	assert(cl_rsa_to_bytes(rsa, pbk_bf2, &pbk_len2, NULL, &pvk_len2) == SUCC);
-	LOG("[3] pbk_len2: %ld, pbk_bf2:\n%s\npvk_len2: %ld, pvk_bf2:\n%s\n", pbk_len2, pbk_bf2, pvk_len2, pvk_bf2);
+	LOG("[3] pbk_len2: %d, pbk_bf2:\n%s\npvk_len2: %d, pvk_bf2:\n%s\n", pbk_len2, pbk_bf2, pvk_len2, pvk_bf2);
 	cl_rsa_destroy(rsa);
 
 	LOG("4. encrypt and decrypt");
