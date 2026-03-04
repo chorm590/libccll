@@ -211,7 +211,6 @@ static void * _evt_thread(void *data)
 		if(evt)
 		{
 			if(evt->free_fun) evt->free_fun(evt->data);
-			else if(evt->data) FREE(evt->data);
 			FREE(evt);
 		}
 	}
