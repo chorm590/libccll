@@ -1,15 +1,11 @@
 #ifndef __CL_EVENT_H__
 #define __CL_EVENT_H__
 
-typedef struct CLEvent CL_EVT;
 typedef void (*cl_evt_free)(void *data);
-struct CLEvent {
-	uint16_t no;
-	void *data;
-	cl_evt_free free_fun;
-	CLIST list;
-};
-
+/*
+ * @return  true -- evt intercepted, will not be publish to others from now.
+ *         false -- keep spreading
+ * */
 typedef bool (*cl_evt_cb)(uint16_t evt_no, void *data);
 
 Ret cl_evt_pub(uint16_t evt_no, void *data, cl_evt_free free_fun);

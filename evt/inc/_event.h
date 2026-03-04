@@ -10,4 +10,12 @@ typedef struct {
 Ret cl_evt_init();
 void cl_evt_deinit();
 
+typedef struct CLEvent CL_EVT;
+struct CLEvent {
+	uint16_t no;
+	void *data;
+	cl_evt_free free_fun;
+	CLIST list;
+};
+
 #endif
