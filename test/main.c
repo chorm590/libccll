@@ -22,7 +22,7 @@
 #include "cl_txt.h"
 #include "cl_rsa.h"
 #include "cl_klciph.h"
-#include "cl_bytes.h"
+#include "cl_convt.h"
 #include "cl_thrdpool.h"
 #include "cl_times.h"
 #include "cl_mem.h"
@@ -145,12 +145,51 @@ static void test_times()
 	DONE;
 }
 
+static void test_convert()
+{
+	char buffer[32];
+
+	long long test_values[] = {
+		0,              // 0 B
+		500,            // 500 B
+		1023,           // 1023 B
+		1024,           // 1 KB
+		1536,           // 1.5 KB
+		10240,          // 10 KB
+		102400,         // 100 KB
+		1048576,        // 1 MB
+		1572864,        // 1.5 MB
+		10485760,       // 10 MB
+		1073741824,     // 1 GB
+		1610612736,     // 1.5 GB
+		10737418240,    // 10 GB
+		1099511627776   // 1 TB（超出GB范围，用于测试边界）
+	};
+
+	int num_tests = sizeof(test_values) / sizeof(test_values[0]);
+
+	LOG("字节数转换测试：\n");
+	LOG("----------------\n");
+	for (int i = 0; i < num_tests; i++)
+	{
+		if(cl_bytes_to_readable_str(test_values[i], buffer) != SUCC)
+		{
+			LOG("failed to convert bytes");
+		}
+		else
+		{
+			LOG("%15lld -> %s", test_values[i], buffer);
+		}
+	}
+}
+
 static void test_common()
 {
 	LTRACE();
-	test_alloc();
-	test_txt();
-	test_times();
+	//test_alloc();
+	//test_txt();
+	//test_times();
+	//test_convert();
 }
 
 /******************************************

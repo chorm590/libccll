@@ -11,7 +11,7 @@
 #define DISABLE_TRACE
 #include "log.h"
 #include "klciph.h"
-#include "bytes.h"
+#include "convt.h"
 #include "alloc.h"
 
 TAG = TAG_PREFIX "klciph";

@@ -13,7 +13,7 @@ AR := $(CROSS_COMPILE)ar
 
 SRCS := comm/alloc.c \
 		comm/txt.c \
-		comm/bytes.c \
+		comm/convt.c \
 		comm/times.c \
 		comm/mac.c \
 		cfg/ini.c \
