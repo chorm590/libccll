@@ -24,6 +24,7 @@ SRCS := comm/alloc.c \
 		sys/timer.c \
 		sys/sh.c \
 		sys/thrdpool.c \
+		sys/mem.c \
 		main.c
 
 OBJS := $(SRCS:.c=.o)

@@ -25,6 +25,7 @@
 #include "cl_bytes.h"
 #include "cl_thrdpool.h"
 #include "cl_times.h"
+#include "cl_mem.h"
 
 TAG = "test";
 
@@ -1197,6 +1198,43 @@ static void test_thrdpol()
 	DONE;
 }
 
+static void test_mem()
+{
+	int vmrss = 0, vmsize = 0, vmpeak = 0, vmdata = 0, vmstk = 0;
+	Ret ret = cl_mem_get_curr_running_mems(&vmrss, &vmsize, &vmpeak, &vmdata, &vmstk);
+	LOG("ret of get mem of self: %d", ret);
+	LOG("\n  vmrss: %d\n  vmsize: %d\n  vmpeak: %d\n  vmdata: %d\n  vmstk: %d\n", vmrss, vmsize, vmpeak, vmdata, vmstk);
+	assert(ret == SUCC);
+	assert(vmrss > 0);
+	assert(vmsize > 0);
+	assert(vmpeak > 0);
+	assert(vmdata > 0);
+	assert(vmstk > 0);
+
+
+	vmrss = 0;
+	vmsize = 0;
+	vmpeak = 0;
+	vmdata = 0;
+	vmstk = 0;
+	ret = cl_mem_get_running_mems(1, &vmrss, &vmsize, &vmpeak, &vmdata, &vmstk);
+	LOG("ret of get mem of 1: %d", ret);
+	LOG("\n  vmrss: %d\n  vmsize: %d\n  vmpeak: %d\n  vmdata: %d\n  vmstk: %d\n", vmrss, vmsize, vmpeak, vmdata, vmstk);
+	assert(ret == SUCC);
+	assert(vmrss > 0);
+	assert(vmsize > 0);
+	assert(vmpeak > 0);
+	assert(vmdata > 0);
+	assert(vmstk > 0);
+
+	DONE;
+}
+
+static void test_sys()
+{
+	test_mem();
+}
+
 
 /******************************************
  **             testing menu             **
@@ -1211,6 +1249,7 @@ static void test()
 	//test_cfg();
 	//test_cipher();
 	//test_thrdpol();
+	//test_sys();
 }
 
 int main()
