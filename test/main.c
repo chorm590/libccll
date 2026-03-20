@@ -26,6 +26,7 @@
 #include "cl_thrdpool.h"
 #include "cl_times.h"
 #include "cl_mem.h"
+#include "cl_io.h"
 
 TAG = "test";
 
@@ -1269,9 +1270,24 @@ static void test_mem()
 	DONE;
 }
 
+static void test_io()
+{
+	Ret ret = cl_mkdir_p("./out/dir1/dir2/dir3", 0444);
+	assert(ret == SUCC);
+
+	ret = cl_mkdir_p("out/dir1/dir4", 0444);
+	assert(ret == SUCC);
+
+	ret = cl_mkdir_p("/tmp/libcclll/dir1/dir2/dir3", 0444);
+	assert(ret == SUCC);
+
+	DONE;
+}
+
 static void test_sys()
 {
 	test_mem();
+	test_io();
 }
 
 
