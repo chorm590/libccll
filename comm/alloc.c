@@ -12,6 +12,8 @@
 #include "_log.h"
 #include "log.h"
 #include "list.h"
+#include "convt.h"
+#include "times.h"
 
 TAG = TAG_PREFIX "alloc";
 
@@ -83,22 +85,6 @@ void cl_free(void *ptr)
 	free(ptr);
 }
 
-void cl_iter_objs()
-{
-#define PRT CLOGD
-	PRT("Iterating the objs allocated:");
-	CL_LOCK(&g_mtx_objs);
-	PRT("  count: %d", list_size(&g_li_objs));
-	Obj *pos;
-	list_for_each2(pos, &g_li_objs, list)
-	{
-		PRT("  %ld [%s] %s+%d: addr: %p, size: %ld", pos->tick, pos->tag, pos->fun, pos->line, pos->addr, pos->size);
-	}
-	PRT("  ----");
-	CL_UNLOCK(&g_mtx_objs);
-#undef PRT
-}
-
 uint32_t cl_allocing_cnt()
 {
 	CL_LOCK(&g_mtx_objs);
@@ -125,5 +111,31 @@ size_t cl_allocing_bytes()
 void cl_alloc_deinit()
 {
 	pthread_mutex_destroy(&g_mtx_objs);
+}
+
+void cl_alloc_get_stat(char *buf)
+{
+	if(buf == NULL) return;
+
+	CL_LOCK(&g_mtx_objs);
+
+	size_t bytes = 0;
+	Obj *obj;
+	list_for_each2(obj, &g_li_objs, list)
+	{
+		bytes += obj->size;
+	}
+
+	sprintf(buf, "Allocating cnt:   %ld\n", list_size(&g_li_objs));
+	char tmpbuf[64] = {0};
+	cl_bytes_to_readable_str(bytes, tmpbuf);
+	sprintf(buf + strlen(buf), "Allocating bytes: %s\n", tmpbuf);
+	list_for_each2(obj, &g_li_objs, list)
+	{
+		memset(tmpbuf, 0, 64);
+		cl_time_sec2date1(obj->tick, tmpbuf);
+		sprintf(buf + strlen(buf), "  [%s] TAG: %s, FUN: %s+%d, ADDR: %p, BYTES: %ld\n", tmpbuf, obj->tag, obj->fun, obj->line, obj->addr, obj->size);
+	}
+	CL_UNLOCK(&g_mtx_objs);
 }
 
