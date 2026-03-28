@@ -13,4 +13,6 @@
  * */
 int cl_txt_pos_line(char *dst, const size_t max, char *src);
 
+void cl_txt_trim(char *txt);
+
 #endif

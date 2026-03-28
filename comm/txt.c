@@ -1,3 +1,5 @@
+#include <ctype.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "def.h"
@@ -37,5 +39,39 @@ int cl_txt_pos_line(char *dst, const size_t max, char *src)
 	*(dst + off) = 0;
 
 	return 0;
+}
+
+void cl_txt_trim(char *str)
+{
+    if (str == NULL || *str == '\0')
+	{
+        return;
+    }
+
+    char *start = str;
+    while (isspace((unsigned char)*start))
+	{
+        start++;
+    }
+
+    if (*start == '\0')
+	{
+        *str = '\0';
+        return;
+    }
+
+    char *dest = str;
+    while (*start)
+	{
+        *dest++ = *start++;
+    }
+    *dest = '\0';
+
+    dest--;
+    while (dest >= str && isspace((unsigned char)*dest))
+	{
+        dest--;
+    }
+    *(dest + 1) = '\0';
 }
 
