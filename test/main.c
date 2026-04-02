@@ -10,7 +10,6 @@
 
 #include "cl_def.h"
 #include "cl_ccll.h"
-#include "cl_log_type.h"
 #include "cl_log.h"
 #include "cl_alloc.h"
 #include "cl_list.h"

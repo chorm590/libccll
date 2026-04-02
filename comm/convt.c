@@ -2,7 +2,6 @@
 #include <stdint.h>
 
 #include "def.h"
-#include "log_type.h"
 #include "_log.h"
 #include "log.h"
 #include "convt.h"

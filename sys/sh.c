@@ -7,7 +7,6 @@
 #include "def.h"
 #include "_def.h"
 #include "sh.h"
-#include "log_type.h"
 #include "_log.h"
 #include "log.h"
 #include "alloc.h"

@@ -12,7 +12,6 @@
 
 #include "def.h"
 #include "ccll.h"
-#include "log_type.h"
 #include "_log.h"
 #include "log.h"
 #include "wait.h"
@@ -24,7 +23,7 @@ static char *g_log_buf;
 static pthread_mutex_t g_lock;
 static char g_init = false;
 
-static int def_print_fun(int type, const char *tag, const char *text)
+static int def_print_fun(CL_LogType type, const char *tag, const char *text)
 {
 	if(!g_init) return FAIL;
 
@@ -35,12 +34,12 @@ static int def_print_fun(int type, const char *tag, const char *text)
 	strftime(g_log_hdr, 30, "%F %T", b); // automatically append the terminate-character at the end.
 										 // Format: 2025-11-01 12:49:38
 	sprintf(g_log_hdr + 19, ".%03d", (int) (a.tv_usec >> 10));
-	CL_LogType lt = (CL_LogType) type;
+	CL_LogType lt = type;
 	sprintf(g_log_hdr + 23, " %C-%s: ", lt, tag);
 
 	switch(type) {
 		case CL_DEBUG:
-			printf(CL_WHITE_BG_PRT CL_BLK_PRT " %s%s " CL_PURE_PRT "\n", g_log_hdr, text);
+			printf(CL_WHITE_BG_PRT CL_BLK_PRT "%s%s " CL_PURE_PRT "\n", g_log_hdr, text);
 			break;
 		case CL_INFO:
 			printf("%s%s\n", g_log_hdr, text);
@@ -85,6 +84,11 @@ void cl_log(CL_LogType type, const char *tag, const char* msg, ...)
 print_fun cl_log_get_def_prtfun()
 {
 	return def_print_fun;
+}
+
+int cl_console_prt(CL_LogType type, const char *tag, const char *txt)
+{
+	return def_print_fun(type, tag, txt);
 }
 
 Ret cl_log_init()

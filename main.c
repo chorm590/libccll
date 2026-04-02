@@ -4,7 +4,6 @@
 #include "_def.h"
 #include "def.h"
 #include "ccll.h"
-#include "log_type.h"
 #include "_log.h"
 #include "log.h"
 #include "list.h"

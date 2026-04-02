@@ -5,7 +5,6 @@
 #include <semaphore.h>
 
 #include "def.h"
-#include "log_type.h"
 #include "_log.h"
 #include "log.h"
 #include "list.h"
@@ -131,7 +130,6 @@ Ret cl_evt_sub(uint16_t evt_no, cl_evt_cb callback)
 
 	// Register the subscribe
 	list_add(&new_lsnr->list, &l_li_lsnrs);
-	CLOGD("new subscriber %d registered", new_lsnr->no);
 
 UNLOCK1146:
 	CL_UNLOCK(&l_mtx_sub);

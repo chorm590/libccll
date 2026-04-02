@@ -6,7 +6,6 @@
 
 #include "def.h"
 #include "_def.h"
-#include "log_type.h"
 #include "_log.h"
 #include "log.h"
 

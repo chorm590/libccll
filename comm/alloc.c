@@ -8,7 +8,6 @@
 
 #include "def.h"
 #include "alloc.h"
-#include "log_type.h"
 #include "_log.h"
 #include "log.h"
 #include "list.h"

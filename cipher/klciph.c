@@ -6,7 +6,6 @@
 #include <math.h>
 
 #include "def.h"
-#include "log_type.h"
 #include "_log.h"
 #define DISABLE_TRACE
 #include "log.h"

@@ -1,7 +1,18 @@
 #ifndef __CL_LOG_H__
 #define __CL_LOG_H__
 
+#ifndef __CL_LOG_TYPE__
+#define __CL_LOG_TYPE__
+typedef enum {
+	CL_DEBUG = 'D',
+	CL_INFO = 'I',
+	CL_WARN = 'W',
+	CL_ERROR = 'E'
+} CL_LogType;
+#endif
+
 void cl_log(CL_LogType type, const char *tag, const char* msg, ...);
+int cl_console_prt(CL_LogType type, const char *tag, const char *txt);
 
 #define CL_TAG cltag // Each .c file that include this header must defined a char * variable named 'cltag'
 					 // Eg: const static char *cltag = "my-tag";

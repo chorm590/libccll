@@ -5,7 +5,6 @@
 
 #include "def.h"
 #include "_def.h"
-#include "log_type.h"
 #include "log.h"
 
 TAG = "mem";
