@@ -19,7 +19,7 @@
 
 extern print_fun s_prtfun;
 
-static char *g_log_hdr;
+static char g_log_hdr[128];
 static char *g_log_buf;
 static pthread_mutex_t g_lock;
 static char g_init = false;
@@ -38,7 +38,23 @@ static int def_print_fun(int type, const char *tag, const char *text)
 	CL_LogType lt = (CL_LogType) type;
 	sprintf(g_log_hdr + 23, " %C-%s: ", lt, tag);
 
-	printf("%s%s\n", g_log_hdr, text);
+	switch(type) {
+		case CL_DEBUG:
+			printf(CL_WHITE_BG_PRT CL_BLK_PRT " %s%s " CL_PURE_PRT "\n", g_log_hdr, text);
+			break;
+		case CL_INFO:
+			printf("%s%s\n", g_log_hdr, text);
+			break;
+		case CL_WARN:
+			printf(CL_YELLOW_PRT "%s%s\n" CL_PURE_PRT, g_log_hdr, text);
+			break;
+		case CL_ERROR:
+			printf(CL_RED_PRT "%s%s\n" CL_PURE_PRT, g_log_hdr, text);
+			break;
+		default:
+			printf("%s%s\n", g_log_hdr, text);
+			break;
+	}
 
 	return SUCC;
 }
@@ -81,19 +97,10 @@ Ret cl_log_init()
 		return FAIL;
 	}
 
-	g_log_hdr = (char *) malloc(LOG_HDR_SZ);
-	if(g_log_hdr == NULL)
-	{
-		perror("malloc log-hdr");
-		return FAIL;
-	}
-
 	g_log_buf = (char *) malloc(LOG_BUF_SZ);
 	if(g_log_buf == NULL)
 	{
 		perror("malloc log-buf");
-		free(g_log_hdr);
-		g_log_hdr = NULL;
 		return FAIL;
 	}
 
@@ -105,9 +112,7 @@ void cl_log_deinit()
 {
 	g_init = false;
 	SLEEP_MS(50); // To wait log-print finish
-	free(g_log_hdr);
 	free(g_log_buf);
-	g_log_hdr = NULL;
 	g_log_buf = NULL;
 	pthread_mutex_destroy(&g_lock);
 }

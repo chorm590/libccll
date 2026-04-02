@@ -46,9 +46,7 @@ static void test_alloc()
 	LTRACE();
 	char *buf1 = MALLOC(32);
 	LOG("addr of buf1: %p", buf1);
-	cl_iter_objs();
 	FREE(buf1);
-	cl_iter_objs();
 
 	DONE;
 }
@@ -575,7 +573,6 @@ static void test_event()
 
 	SLEEP(3);
 
-	cl_iter_objs();
 	assert(cl_allocing_cnt() == 0);
 	DONE;
 }
@@ -1290,6 +1287,20 @@ static void test_sys()
 	test_io();
 }
 
+static void test_log() {
+	CLOGD("Log d");
+	CLOGD("Log d");
+	CLOGD("Log d");
+	CLOGD("Log d");
+	CLOGW("Log w");
+	CLOGI("Log i");
+	CLOGD("Log d");
+	CLOGW("Log w");
+	CLOGE("Log e");
+	CLOGD("Log d");
+	TRACE();
+}
+
 
 /******************************************
  **             testing menu             **
@@ -1305,6 +1316,7 @@ static void test()
 	//test_cipher();
 	//test_thrdpol();
 	//test_sys();
+	//test_log();
 }
 
 int main()

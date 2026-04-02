@@ -29,7 +29,7 @@ SRCS := comm/alloc.c \
 		main.c
 
 OBJS := $(SRCS:.c=.o)
-CFLAGS_C := -fPIC -Wall
+CFLAGS_C := -fPIC -Wall -Wunused-variable
 CFLAGS_L := -shared -Wall
 LDFLAGS := -lpthread -lssl -lcrypto -lm
 INCS := -Icomm/inc \

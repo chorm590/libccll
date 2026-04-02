@@ -57,14 +57,16 @@ Ret cl_sh_exec(const char *cmd, char *result, int size, int *rlen)
 	if(result == NULL)
 	{
 		_read_all_out(pf);
-		return WEXITSTATUS(pclose(pf)) ? FAIL : SUCC;
+		const int rc = WEXITSTATUS(pclose(pf));
+		return rc ? rc : SUCC;
 	}
 
 	const int rsz = size - 1;
 	if(rsz < 0)
 	{
 		_read_all_out(pf);
-		return WEXITSTATUS(pclose(pf)) ? FAIL : SUCC;
+		const int rc = WEXITSTATUS(pclose(pf));
+		return rc ? rc : SUCC;
 	}
 
 	const int len = fread(result, 1, rsz, pf);
@@ -85,6 +87,7 @@ Ret cl_sh_exec(const char *cmd, char *result, int size, int *rlen)
 		_read_all_out(pf);
 	}
 
-	return WEXITSTATUS(pclose(pf)) ? FAIL : SUCC;
+	const int rc = WEXITSTATUS(pclose(pf));
+	return rc ? rc : SUCC;
 }
 
