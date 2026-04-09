@@ -7,7 +7,7 @@
 #include "_def.h"
 #include "log.h"
 
-TAG = "mem";
+TAG = TAG_PREFIX "mem";
 
 Ret _get_running_mems(const char *process, int *vm_rss, int *vm_size, int *vm_peak, int *vm_data, int *vm_stk)
 {
@@ -25,7 +25,6 @@ Ret _get_running_mems(const char *process, int *vm_rss, int *vm_size, int *vm_pe
 	char buffer[256];
 	int found_cnt = 0;
 	const int item_cnt = sizeof(MemInfo) / sizeof(int);
-	CLOGD("item_cnt: %d", item_cnt);
 	MemInfo mi = {0};
 
 	{

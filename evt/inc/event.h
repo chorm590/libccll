@@ -2,6 +2,9 @@
 #define __CL_EVENT_H__
 
 typedef void (*cl_evt_free)(void *data);
+static inline void cl_evt_fake_free_fun(void *data) {
+	// Do nothing
+}
 /*
  * @return  true -- evt intercepted, will not be publish to others from now.
  *         false -- keep spreading

@@ -22,6 +22,8 @@ static char g_log_hdr[128];
 static char *g_log_buf;
 static pthread_mutex_t g_lock;
 static char g_init = false;
+#define DEF_ALOW_LOG_TYPE CL_DEBUG
+static CL_LogType g_alow_log_type = DEF_ALOW_LOG_TYPE;
 
 static int def_print_fun(CL_LogType type, const char *tag, const char *text)
 {
@@ -60,6 +62,9 @@ static int def_print_fun(CL_LogType type, const char *tag, const char *text)
 
 void cl_log(CL_LogType type, const char *tag, const char* msg, ...)
 {
+	if(type < g_alow_log_type)
+		return;
+
 	if(pthread_mutex_lock(&g_lock))
 	{
 		fprintf(stderr, "lock for log failed, err: %d", errno);
@@ -88,6 +93,9 @@ print_fun cl_log_get_def_prtfun()
 
 int cl_console_prt(CL_LogType type, const char *tag, const char *txt)
 {
+	if(type < g_alow_log_type)
+		return FAIL;
+
 	return def_print_fun(type, tag, txt);
 }
 
@@ -121,3 +129,13 @@ void cl_log_deinit()
 	pthread_mutex_destroy(&g_lock);
 }
 
+void cl_set_mode(LogMode mode) {
+	switch(mode) {
+		case CL_MODE_NORMAL:
+			g_alow_log_type = DEF_ALOW_LOG_TYPE;
+			break;
+		case CL_MODE_SILENT:
+			g_alow_log_type = 0xff;
+			break;
+	}
+}
