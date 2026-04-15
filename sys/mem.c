@@ -5,6 +5,7 @@
 
 #include "def.h"
 #include "_def.h"
+#include "_log.h"
 #include "log.h"
 
 TAG = TAG_PREFIX "mem";

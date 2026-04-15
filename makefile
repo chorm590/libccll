@@ -16,6 +16,7 @@ SRCS := comm/alloc.c \
 		comm/convt.c \
 		comm/times.c \
 		comm/mac.c \
+		comm/ip.c \
 		cfg/ini.c \
 		cipher/rsa.c \
 		cipher/klciph.c \
