@@ -1,7 +1,11 @@
-#include <openssl/rsa.h>
+#include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
 #include <openssl/bn.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/param_build.h>
+#include <openssl/core_names.h>
+#endif
 
 #include "_def.h"
 #include "def.h"
@@ -13,22 +17,10 @@
 
 TAG = TAG_PREFIX "rsa";
 
-Ret cl_rsa_init()
-{
-	OpenSSL_add_all_algorithms();
-	ERR_load_crypto_strings();
-
-	return SUCC;
-}
-
-void cl_rsa_deinit()
-{
-}
-
-Ret cl_rsa_gen(const int exponent, const int bits, RSA **rsa)
+Ret cl_rsa_gen(const int exponent, const int bits, EVP_PKEY **pkey)
 {
 	TRACE();
-	if(rsa == NULL) return FAIL;
+	if(pkey == NULL) return FAIL;
 	const int allowed_expn[] = {
 		65537,
 	};
@@ -67,57 +59,121 @@ Ret cl_rsa_gen(const int exponent, const int bits, RSA **rsa)
 		}
 	}
 
-	BIGNUM *bn = BN_new();
-	if(bn == NULL)
+	EVP_PKEY *pk = NULL;
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_from_name(NULL, "RSA", NULL);
+#else
+	EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
+#endif
+	if(ctx == NULL)
 	{
-		CLOGE("new BN failed, err: %d", errno);
+		CLOGE("new PKEY_CTX failed, err: %d", errno);
 		return FAIL;
 	}
 
-	if(!BN_set_word(bn, exponent))
+	if(EVP_PKEY_keygen_init(ctx) != 1)
 	{
-		CLOGE("set BN failed, errno: %d", errno);
-		BN_free(bn);
+		CLOGE("keygen init failed, err: %d", errno);
+		EVP_PKEY_CTX_free(ctx);
 		return FAIL;
 	}
 
-	RSA *_rsa = RSA_new();
-	if(_rsa == NULL)
+	if(EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, bits) != 1)
 	{
-		CLOGE("new RSA failed, err: %d", errno);
-		BN_free(bn);
+		CLOGE("set keygen bits failed, err: %d", errno);
+		EVP_PKEY_CTX_free(ctx);
 		return FAIL;
 	}
 
-	if(RSA_generate_key_ex(_rsa, bits, bn, NULL) != 1)
+	{
+		BIGNUM *bn_exp = BN_new();
+		if(bn_exp == NULL)
+		{
+			CLOGE("new BN for pubexp failed, err: %d", errno);
+			EVP_PKEY_CTX_free(ctx);
+			return FAIL;
+		}
+		if(!BN_set_word(bn_exp, exponent))
+		{
+			CLOGE("set BN pubexp failed, err: %d", errno);
+			BN_free(bn_exp);
+			EVP_PKEY_CTX_free(ctx);
+			return FAIL;
+		}
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+		OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
+		if(bld == NULL)
+		{
+			CLOGE("new param BLD failed, err: %d", errno);
+			BN_free(bn_exp);
+			EVP_PKEY_CTX_free(ctx);
+			return FAIL;
+		}
+		if(!OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_E, bn_exp))
+		{
+			CLOGE("push RSA pubexp to param BLD failed, err: %d", errno);
+			BN_free(bn_exp);
+			OSSL_PARAM_BLD_free(bld);
+			EVP_PKEY_CTX_free(ctx);
+			return FAIL;
+		}
+		OSSL_PARAM *params = OSSL_PARAM_BLD_to_param(bld);
+		BN_free(bn_exp);
+		OSSL_PARAM_BLD_free(bld);
+		if(params == NULL)
+		{
+			CLOGE("build params failed, err: %d", errno);
+			EVP_PKEY_CTX_free(ctx);
+			return FAIL;
+		}
+		if(EVP_PKEY_CTX_set_params(ctx, params) != 1)
+		{
+			CLOGE("set keygen pubexp failed, err: %d", errno);
+			OSSL_PARAM_free(params);
+			EVP_PKEY_CTX_free(ctx);
+			return FAIL;
+		}
+		OSSL_PARAM_free(params);
+#else
+		if(EVP_PKEY_CTX_set_rsa_keygen_pubexp(ctx, bn_exp) != 1)
+		{
+			CLOGE("set keygen pubexp failed, err: %d", errno);
+			BN_free(bn_exp);
+			EVP_PKEY_CTX_free(ctx);
+			return FAIL;
+		}
+		BN_free(bn_exp);
+#endif
+	}
+
+	if(EVP_PKEY_keygen(ctx, &pk) != 1)
 	{
 		CLOGE("generate the RSA failed, err: %d", errno);
-		RSA_free(_rsa);
-		BN_free(bn);
+		EVP_PKEY_CTX_free(ctx);
 		return FAIL;
 	}
-	BN_free(bn);
 
-	*rsa = _rsa;
+	EVP_PKEY_CTX_free(ctx);
+	*pkey = pk;
 
 	return SUCC;
 }
 
-void cl_rsa_destroy(RSA *rsa)
+void cl_rsa_destroy(EVP_PKEY *pkey)
 {
 	TRACE();
-	if(rsa == NULL)
+	if(pkey == NULL)
 	{
 		CLOGE(NP);
 		return;
 	}
-	RSA_free(rsa);
+	EVP_PKEY_free(pkey);
 }
 
-Ret cl_rsa_to_file(RSA *rsa, const char *pub_key_fn, const char *prv_key_fn)
+Ret cl_rsa_to_file(EVP_PKEY *pkey, const char *pub_key_fn, const char *prv_key_fn)
 {
 	TRACE();
-	if(rsa == NULL) return FAIL;
+	if(pkey == NULL) return FAIL;
 
 	if(pub_key_fn)
 	{
@@ -128,7 +184,7 @@ Ret cl_rsa_to_file(RSA *rsa, const char *pub_key_fn, const char *prv_key_fn)
 			return FAIL;
 		}
 
-		if(PEM_write_bio_RSAPublicKey(bio_pbk, rsa) != 1)
+		if(PEM_write_bio_PUBKEY(bio_pbk, pkey) != 1)
 		{
 			CLOGE("write pub-key to file failed, err: %d", errno);
 			BIO_free_all(bio_pbk);
@@ -148,7 +204,7 @@ Ret cl_rsa_to_file(RSA *rsa, const char *pub_key_fn, const char *prv_key_fn)
 			return FAIL;
 		}
 
-		if(PEM_write_bio_RSAPrivateKey(bio_pvk, rsa, NULL, NULL, 0, NULL, NULL) != 1)
+		if(PEM_write_bio_PrivateKey(bio_pvk, pkey, NULL, NULL, 0, NULL, NULL) != 1)
 		{
 			CLOGE("write prv-key to file failed, err: %d", errno);
 			BIO_free_all(bio_pvk);
@@ -162,10 +218,10 @@ Ret cl_rsa_to_file(RSA *rsa, const char *pub_key_fn, const char *prv_key_fn)
 	return SUCC;
 }
 
-Ret cl_rsa_to_bytes(RSA *rsa, uint8_t *pub_key_buf, int *pbk_len, uint8_t *prv_key_buf, int *pvk_len)
+Ret cl_rsa_to_bytes(EVP_PKEY *pkey, uint8_t *pub_key_buf, int *pbk_len, uint8_t *prv_key_buf, int *pvk_len)
 {
 	TRACE();
-	if(rsa == NULL) return FAIL;
+	if(pkey == NULL) return FAIL;
 
 	if(pub_key_buf)
 	{
@@ -178,7 +234,7 @@ Ret cl_rsa_to_bytes(RSA *rsa, uint8_t *pub_key_buf, int *pbk_len, uint8_t *prv_k
 			return FAIL;
 		}
 
-		if(PEM_write_bio_RSAPublicKey(bio_pbk, rsa) != 1)
+		if(PEM_write_bio_PUBKEY(bio_pbk, pkey) != 1)
 		{
 			CLOGE("convert pub-key to byte stream failed, err: %d", errno);
 			BIO_free(bio_pbk);
@@ -201,7 +257,7 @@ Ret cl_rsa_to_bytes(RSA *rsa, uint8_t *pub_key_buf, int *pbk_len, uint8_t *prv_k
 			return FAIL;
 		}
 
-		if(PEM_write_bio_RSAPrivateKey(bio_pvk, rsa, NULL, NULL, 0, NULL, NULL) != 1)
+		if(PEM_write_bio_PrivateKey(bio_pvk, pkey, NULL, NULL, 0, NULL, NULL) != 1)
 		{
 			CLOGE("convert prv-key to byte stream failed, err: %d", errno);
 			BIO_free(bio_pvk);
@@ -216,35 +272,154 @@ Ret cl_rsa_to_bytes(RSA *rsa, uint8_t *pub_key_buf, int *pbk_len, uint8_t *prv_k
 	return SUCC;
 }
 
-Ret cl_rsa_enc(RSA *rsa, bool with_pbk, uint8_t *plain, int plen, uint8_t *cipher, int *clen)
+Ret cl_rsa_enc(EVP_PKEY *pkey, bool with_pbk, uint8_t *plain, int plen, uint8_t *cipher, int *clen)
 {
 	TRACE();
-	if(rsa == NULL || plain == NULL || cipher == NULL || clen == NULL) return FAIL;
+	if(pkey == NULL || plain == NULL || cipher == NULL || clen == NULL) return FAIL;
 
-	const int ret = with_pbk ? RSA_public_encrypt(plen, plain, cipher, rsa, RSA_PKCS1_PADDING) : RSA_private_encrypt(plen, plain, cipher, rsa, RSA_PKCS1_PADDING);
-	if(ret == -1)
+	EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pkey, NULL);
+	if(ctx == NULL)
+	{
+		CLOGE("new PKEY_CTX for enc failed, err: %d", errno);
+		return FAIL;
+	}
+
+	size_t out_len = 0;
+	int ret;
+
+	if(with_pbk)
+	{
+		ret = EVP_PKEY_encrypt_init(ctx);
+	}
+	else
+	{
+		ret = EVP_PKEY_sign_init(ctx);
+	}
+
+	if(ret != 1)
+	{
+		CLOGE("enc init failed, err: %d", errno);
+		EVP_PKEY_CTX_free(ctx);
+		return FAIL;
+	}
+
+	if(EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING) != 1)
+	{
+		CLOGE("set enc padding failed, err: %d", errno);
+		EVP_PKEY_CTX_free(ctx);
+		return FAIL;
+	}
+
+	if(with_pbk)
+	{
+		ret = EVP_PKEY_encrypt(ctx, NULL, &out_len, plain, plen);
+	}
+	else
+	{
+		ret = EVP_PKEY_sign(ctx, NULL, &out_len, plain, plen);
+	}
+
+	if(ret != 1)
+	{
+		CLOGE("enc query size with %s failed, err: %d", with_pbk ? "pub-key" : "prv-key", errno);
+		EVP_PKEY_CTX_free(ctx);
+		return FAIL;
+	}
+
+	if(with_pbk)
+	{
+		ret = EVP_PKEY_encrypt(ctx, cipher, &out_len, plain, plen);
+	}
+	else
+	{
+		ret = EVP_PKEY_sign(ctx, cipher, &out_len, plain, plen);
+	}
+
+	if(ret != 1)
 	{
 		CLOGE("enc with %s failed, err: %d", with_pbk ? "pub-key" : "prv-key", errno);
+		EVP_PKEY_CTX_free(ctx);
 		return FAIL;
 	}
-	*clen = ret;
+
+	*clen = out_len;
+	EVP_PKEY_CTX_free(ctx);
 
 	return SUCC;
 }
 
-Ret cl_rsa_dec(RSA *rsa, bool with_pbk, uint8_t *cipher, int clen, uint8_t *plain, int *plen)
+Ret cl_rsa_dec(EVP_PKEY *pkey, bool with_pbk, uint8_t *cipher, int clen, uint8_t *plain, int *plen)
 {
 	TRACE();
-	if(rsa == NULL || cipher == NULL || plain == NULL || plen == NULL) return FAIL;
+	if(pkey == NULL || cipher == NULL || plain == NULL || plen == NULL) return FAIL;
 
-	const int ret = with_pbk ? RSA_public_decrypt(clen, cipher, plain, rsa, RSA_PKCS1_PADDING) : RSA_private_decrypt(clen, cipher, plain, rsa, RSA_PKCS1_PADDING);
-	if(ret == -1)
+	EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pkey, NULL);
+	if(ctx == NULL)
 	{
-		CLOGE("dec with %s failed, err: %d", with_pbk ? "pub-key" : "prv-key", errno);
+		CLOGE("new PKEY_CTX for dec failed, err: %d", errno);
 		return FAIL;
 	}
-	*plen = ret;
+
+	size_t out_len = 0;
+	int ret;
+
+	if(with_pbk)
+	{
+		ret = EVP_PKEY_verify_recover_init(ctx);
+	}
+	else
+	{
+		ret = EVP_PKEY_decrypt_init(ctx);
+	}
+
+	if(ret != 1)
+	{
+		CLOGE("dec init failed, err: %d", errno);
+		EVP_PKEY_CTX_free(ctx);
+		return FAIL;
+	}
+
+	if(EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING) != 1)
+	{
+		CLOGE("set dec padding failed, err: %d", errno);
+		EVP_PKEY_CTX_free(ctx);
+		return FAIL;
+	}
+
+	if(with_pbk)
+	{
+		ret = EVP_PKEY_verify_recover(ctx, NULL, &out_len, cipher, clen);
+	}
+	else
+	{
+		ret = EVP_PKEY_decrypt(ctx, NULL, &out_len, cipher, clen);
+	}
+
+	if(ret != 1)
+	{
+		CLOGE("dec query size with %s failed, err: %d", with_pbk ? "pub-key" : "prv-key", errno);
+		EVP_PKEY_CTX_free(ctx);
+		return FAIL;
+	}
+
+	if(with_pbk)
+	{
+		ret = EVP_PKEY_verify_recover(ctx, plain, &out_len, cipher, clen);
+	}
+	else
+	{
+		ret = EVP_PKEY_decrypt(ctx, plain, &out_len, cipher, clen);
+	}
+
+	if(ret != 1)
+	{
+		CLOGE("dec with %s failed, err: %d", with_pbk ? "pub-key" : "prv-key", errno);
+		EVP_PKEY_CTX_free(ctx);
+		return FAIL;
+	}
+
+	*plen = out_len;
+	EVP_PKEY_CTX_free(ctx);
 
 	return SUCC;
 }
-

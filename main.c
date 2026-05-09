@@ -11,7 +11,7 @@
 #include "_event.h"
 #include "_timer.h"
 #include "timer.h"
-#include "_rsa.h"
+
 #include "_alloc.h"
 #include "_thrdpool.h"
 
@@ -44,7 +44,6 @@ Ret cl_init(print_fun pfun)
 	INIT(log);
 	INIT(evt);
 	INIT(timer);
-	INIT(rsa);
 	INIT(trpo);
 
 	s_init = true;
@@ -59,7 +58,6 @@ void cl_deinit()
 	s_init = false;
 	s_prtfun = NULL;
 	DEINIT(trpo);
-	DEINIT(rsa);
 	DEINIT(timer);
 	DEINIT(evt);
 	DEINIT(log);

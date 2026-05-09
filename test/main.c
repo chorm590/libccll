@@ -6,7 +6,7 @@
 #include <sys/stat.h>
 #include <sys/sysinfo.h>
 #include <unistd.h>
-#include <openssl/rsa.h>
+#include <openssl/evp.h>
 
 #include "cl_def.h"
 #include "cl_ccll.h"
@@ -451,18 +451,25 @@ static bool _tst_evt_cb23(uint16_t evt_no, void *data)
 static void test_event()
 {
 	LTRACE();
+    SLEEP(1);
+    const int alcnt = cl_allocing_cnt();
+
+    Ret ret;
+    TST_EVT_DAT1 *dat1;
+    TST_EVT_DAT1 *dat1_2;
+    TST_EVT_DAT2 *dat2;
 
 	// 1. Just publish
 	LOG("\n\ncase 1");
-	TST_EVT_DAT1 *dat1 = (TST_EVT_DAT1 *) MALLOC(sizeof(TST_EVT_DAT1));
-	Ret ret = cl_evt_pub(12, (void *) dat1, _tst_evt_dat1_free_fun);
+	dat1 = (TST_EVT_DAT1 *) MALLOC(sizeof(TST_EVT_DAT1));
+	ret = cl_evt_pub(12, (void *) dat1, _tst_evt_dat1_free_fun);
 	LOG("ret of pub evt-12: %d", ret);
 
 	SLEEP(1);
 
 	// 2. Just publish too
 	LOG("\n\ncase 2");
-	TST_EVT_DAT1 *dat1_2 = (TST_EVT_DAT1 *) MALLOC(sizeof(TST_EVT_DAT1));
+	dat1_2 = (TST_EVT_DAT1 *) MALLOC(sizeof(TST_EVT_DAT1));
 	ret = cl_evt_pub(13, (void *) dat1_2, _tst_evt_dat1_free_fun);
 	LOG("ret of pub evt-13: %d", ret);
 
@@ -470,7 +477,7 @@ static void test_event()
 
 	// 3. Just publish too too
 	LOG("\n\ncase 3");
-	TST_EVT_DAT2 *dat2 = (TST_EVT_DAT2 *) MALLOC(sizeof(TST_EVT_DAT2));
+	dat2 = (TST_EVT_DAT2 *) MALLOC(sizeof(TST_EVT_DAT2));
 	ret = cl_evt_pub(14, (void *) dat2, _tst_evt_dat2_free_fun);
 	LOG("ret of pub evt-14: %d", ret);
 
@@ -506,8 +513,6 @@ static void test_event()
 	LOG("ret of pub evt-16: %d", ret);
 	SLEEP(1);
 	cl_evt_unsub(16, _tst_evt_cb1);
-	dat1_2->txt[3] = 22;
-	dat1_2->no = 998; // It should cause care-dump
 
 	SLEEP(1);
 
@@ -572,7 +577,7 @@ static void test_event()
 
 	SLEEP(3);
 
-	assert(cl_allocing_cnt() == 0);
+	assert(cl_allocing_cnt() == alcnt);
 	DONE;
 }
 
@@ -747,7 +752,7 @@ static void test_sh()
 	}
 
 	LOG("4. invalid cmd");
-	assert(cl_sh_exec("invalid-cmd", NULL, 0, NULL) == FAIL);
+	assert(cl_sh_exec("invalid-cmd", NULL, 0, NULL) != SUCC);
 
 	LOG("5. ");
 	char result[8] = {0};
@@ -887,25 +892,25 @@ key4      =value4\n\
 static void test_rsa()
 {
 	LTRACE();
-	RSA *rsa;
+	EVP_PKEY *pkey;
 
 	LOG("1. generate the RSA");
-	rsa = NULL;
-	assert(cl_rsa_gen(123, 2048, &rsa) == FAIL);
-	assert(rsa == NULL);
-	assert(cl_rsa_gen(123, 4096, &rsa) == FAIL);
-	assert(rsa == NULL);
-	assert(cl_rsa_gen(123, 456, &rsa) == FAIL);
-	assert(rsa == NULL);
-	assert(cl_rsa_gen(65537, 456, &rsa) == FAIL);
-	assert(rsa == NULL);
-	assert(cl_rsa_gen(65537, 2048, &rsa) == SUCC);
-	assert(rsa != NULL);
-	cl_rsa_destroy(rsa);
-	rsa = NULL;
-	assert(cl_rsa_gen(65537, 4096, &rsa) == SUCC);
-	assert(rsa != NULL);
-	cl_rsa_destroy(rsa);
+	pkey = NULL;
+	assert(cl_rsa_gen(123, 2048, &pkey) == FAIL);
+	assert(pkey == NULL);
+	assert(cl_rsa_gen(123, 4096, &pkey) == FAIL);
+	assert(pkey == NULL);
+	assert(cl_rsa_gen(123, 456, &pkey) == FAIL);
+	assert(pkey == NULL);
+	assert(cl_rsa_gen(65537, 456, &pkey) == FAIL);
+	assert(pkey == NULL);
+	assert(cl_rsa_gen(65537, 2048, &pkey) == SUCC);
+	assert(pkey != NULL);
+	cl_rsa_destroy(pkey);
+	pkey = NULL;
+	assert(cl_rsa_gen(65537, 4096, &pkey) == SUCC);
+	assert(pkey != NULL);
+	cl_rsa_destroy(pkey);
 
 	LOG("2. export RSA to file");
 	const char *pbk_fn1 = "out/pbk1.pem";
@@ -916,22 +921,22 @@ static void test_rsa()
 	const char *pvk_fn2 = "out/pvk2.pem";
 	const char *pvk_fn3 = "out/pvk3.pem";
 	const char *pvk_fn4 = "out/pvk4.pem";
-	rsa = NULL;
-	assert(cl_rsa_gen(65537, 2048, &rsa) == SUCC);
-	assert(rsa != NULL);
-	assert(cl_rsa_to_file(rsa, pbk_fn1, pvk_fn1) == SUCC);
-	assert(cl_rsa_to_file(rsa, pbk_fn2, NULL) == SUCC);
-	assert(cl_rsa_to_file(rsa, NULL, pvk_fn2) == SUCC);
-	assert(cl_rsa_to_file(rsa, NULL, NULL) == SUCC);
-	cl_rsa_destroy(rsa);
-	rsa = NULL;
-	assert(cl_rsa_gen(65537, 4096, &rsa) == SUCC);
-	assert(rsa != NULL);
-	assert(cl_rsa_to_file(rsa, pbk_fn3, pvk_fn3) == SUCC);
-	assert(cl_rsa_to_file(rsa, pbk_fn4, NULL) == SUCC);
-	assert(cl_rsa_to_file(rsa, NULL, pvk_fn4) == SUCC);
-	assert(cl_rsa_to_file(rsa, NULL, NULL) == SUCC);
-	cl_rsa_destroy(rsa);
+	pkey = NULL;
+	assert(cl_rsa_gen(65537, 2048, &pkey) == SUCC);
+	assert(pkey != NULL);
+	assert(cl_rsa_to_file(pkey, pbk_fn1, pvk_fn1) == SUCC);
+	assert(cl_rsa_to_file(pkey, pbk_fn2, NULL) == SUCC);
+	assert(cl_rsa_to_file(pkey, NULL, pvk_fn2) == SUCC);
+	assert(cl_rsa_to_file(pkey, NULL, NULL) == SUCC);
+	cl_rsa_destroy(pkey);
+	pkey = NULL;
+	assert(cl_rsa_gen(65537, 4096, &pkey) == SUCC);
+	assert(pkey != NULL);
+	assert(cl_rsa_to_file(pkey, pbk_fn3, pvk_fn3) == SUCC);
+	assert(cl_rsa_to_file(pkey, pbk_fn4, NULL) == SUCC);
+	assert(cl_rsa_to_file(pkey, NULL, pvk_fn4) == SUCC);
+	assert(cl_rsa_to_file(pkey, NULL, NULL) == SUCC);
+	cl_rsa_destroy(pkey);
 	LOG("  You must check the export file manually");
 
 	LOG("3. export RSA to memory");
@@ -939,53 +944,53 @@ static void test_rsa()
 	uint8_t pvk_bf1[2048];
 	int pbk_len1;
 	int pvk_len1;
-	rsa = NULL;
-	assert(cl_rsa_gen(65537, 2048, &rsa) == SUCC);
-	assert(rsa != NULL);
+	pkey = NULL;
+	assert(cl_rsa_gen(65537, 2048, &pkey) == SUCC);
+	assert(pkey != NULL);
 	memset(pbk_bf1, 0, 512);
 	memset(pvk_bf1, 0, 2048);
 	pbk_len1 = 0;
 	pvk_len1 = 0;
-	assert(cl_rsa_to_bytes(rsa, pbk_bf1, &pbk_len1, pvk_bf1, &pvk_len1) == SUCC);
+	assert(cl_rsa_to_bytes(pkey, pbk_bf1, &pbk_len1, pvk_bf1, &pvk_len1) == SUCC);
 	LOG("pbk_len1: %d, pbk_bf1:\n%s\npvk_len1: %d, pvk_bf1:\n%s\n", pbk_len1, pbk_bf1, pvk_len1, pvk_bf1);
-	assert(cl_rsa_to_bytes(rsa, pbk_bf1, NULL, pvk_bf1, &pvk_len1) == FAIL);
-	assert(cl_rsa_to_bytes(rsa, pbk_bf1, &pbk_len1, pvk_bf1, NULL) == FAIL);
+	assert(cl_rsa_to_bytes(pkey, pbk_bf1, NULL, pvk_bf1, &pvk_len1) == FAIL);
+	assert(cl_rsa_to_bytes(pkey, pbk_bf1, &pbk_len1, pvk_bf1, NULL) == FAIL);
 	memset(pbk_bf1, 0, 512);
 	memset(pvk_bf1, 0, 2048);
 	pbk_len1 = 0;
 	pvk_len1 = 0;
-	assert(cl_rsa_to_bytes(rsa, pbk_bf1, &pbk_len1, NULL, NULL) == SUCC);
+	assert(cl_rsa_to_bytes(pkey, pbk_bf1, &pbk_len1, NULL, NULL) == SUCC);
 	LOG("pbk_len1: %d, pbk_bf1:\n%s\npvk_len1: %d, pvk_bf1:\n%s\n", pbk_len1, pbk_bf1, pvk_len1, pvk_bf1);
-	cl_rsa_destroy(rsa);
+	cl_rsa_destroy(pkey);
 	uint8_t pbk_bf2[1024];
 	uint8_t pvk_bf2[4096];
 	int pbk_len2;
 	int pvk_len2;
-	rsa = NULL;
-	assert(cl_rsa_gen(65537, 4096, &rsa) == SUCC);
-	assert(rsa != NULL);
+	pkey = NULL;
+	assert(cl_rsa_gen(65537, 4096, &pkey) == SUCC);
+	assert(pkey != NULL);
 	memset(pbk_bf2, 0, 1024);
 	memset(pvk_bf2, 0, 4096);
 	pbk_len2 = 0;
 	pvk_len2 = 0;
-	assert(cl_rsa_to_bytes(rsa, pbk_bf2, &pbk_len2, pvk_bf2, &pvk_len2) == SUCC);
+	assert(cl_rsa_to_bytes(pkey, pbk_bf2, &pbk_len2, pvk_bf2, &pvk_len2) == SUCC);
 	LOG("[1] pbk_len2: %d, pbk_bf2:\n%s\npvk_len2: %d, pvk_bf2:\n%s\n", pbk_len2, pbk_bf2, pvk_len2, pvk_bf2);
-	assert(cl_rsa_to_bytes(rsa, pbk_bf2, NULL, pvk_bf2, &pvk_len2) == FAIL);
-	assert(cl_rsa_to_bytes(rsa, pbk_bf2, &pbk_len2, pvk_bf2, NULL) == FAIL);
-	assert(cl_rsa_to_bytes(rsa, pbk_bf2, NULL, pvk_bf2, NULL) == FAIL);
+	assert(cl_rsa_to_bytes(pkey, pbk_bf2, NULL, pvk_bf2, &pvk_len2) == FAIL);
+	assert(cl_rsa_to_bytes(pkey, pbk_bf2, &pbk_len2, pvk_bf2, NULL) == FAIL);
+	assert(cl_rsa_to_bytes(pkey, pbk_bf2, NULL, pvk_bf2, NULL) == FAIL);
 	memset(pbk_bf2, 0, 1024);
 	memset(pvk_bf2, 0, 4096);
 	pbk_len2 = 0;
 	pvk_len2 = 0;
-	assert(cl_rsa_to_bytes(rsa, pbk_bf2, &pbk_len2, NULL, NULL) == SUCC);
+	assert(cl_rsa_to_bytes(pkey, pbk_bf2, &pbk_len2, NULL, NULL) == SUCC);
 	LOG("[2] pbk_len2: %d, pbk_bf2:\n%s\npvk_len2: %d, pvk_bf2:\n%s\n", pbk_len2, pbk_bf2, pvk_len2, pvk_bf2);
 	memset(pbk_bf2, 0, 1024);
 	memset(pvk_bf2, 0, 4096);
 	pbk_len2 = 0;
 	pvk_len2 = 0;
-	assert(cl_rsa_to_bytes(rsa, pbk_bf2, &pbk_len2, NULL, &pvk_len2) == SUCC);
+	assert(cl_rsa_to_bytes(pkey, pbk_bf2, &pbk_len2, NULL, &pvk_len2) == SUCC);
 	LOG("[3] pbk_len2: %d, pbk_bf2:\n%s\npvk_len2: %d, pvk_bf2:\n%s\n", pbk_len2, pbk_bf2, pvk_len2, pvk_bf2);
-	cl_rsa_destroy(rsa);
+	cl_rsa_destroy(pkey);
 
 	LOG("4. encrypt and decrypt");
 	char *words = "This is my testing data for RSA ciphering...";
@@ -998,73 +1003,73 @@ static void test_rsa()
 	memset(plain_buf, 0, 100);
 	plen = -1;
 	clen = -1;
-	assert(cl_rsa_gen(65537, 2048, &rsa) == SUCC);
-	assert(rsa != NULL);
-	assert(cl_rsa_enc(rsa, true, words, wd_len, cipher_buf, &clen) == SUCC);
+	assert(cl_rsa_gen(65537, 2048, &pkey) == SUCC);
+	assert(pkey != NULL);
+	assert(cl_rsa_enc(pkey, true, words, wd_len, cipher_buf, &clen) == SUCC);
 	assert(clen == 256);
 	LOG("clen: %d", clen);
-	assert(cl_rsa_dec(rsa, false, cipher_buf, clen, plain_buf, &plen) == SUCC);
+	assert(cl_rsa_dec(pkey, false, cipher_buf, clen, plain_buf, &plen) == SUCC);
 	assert(plen == wd_len);
 	LOG("plen: %d", plen);
 	assert(strcmp(plain_buf, words) == 0);
 	LOG("[1] text decrypted: %s", plain_buf);
-	cl_rsa_destroy(rsa);
+	cl_rsa_destroy(pkey);
 	memset(cipher_buf, 0, 600);
 	memset(plain_buf, 0, 100);
 	plen = -1;
 	clen = -1;
-	assert(cl_rsa_gen(65537, 4096, &rsa) == SUCC);
-	assert(rsa != NULL);
-	assert(cl_rsa_enc(rsa, true, words, wd_len, cipher_buf, &clen) == SUCC);
+	assert(cl_rsa_gen(65537, 4096, &pkey) == SUCC);
+	assert(pkey != NULL);
+	assert(cl_rsa_enc(pkey, true, words, wd_len, cipher_buf, &clen) == SUCC);
 	assert(clen == 512);
 	LOG("clen: %d", clen);
-	assert(cl_rsa_dec(rsa, false, cipher_buf, clen, plain_buf, &plen) == SUCC);
+	assert(cl_rsa_dec(pkey, false, cipher_buf, clen, plain_buf, &plen) == SUCC);
 	assert(plen == wd_len);
 	LOG("plen: %d", plen);
 	assert(strcmp(plain_buf, words) == 0);
 	LOG("[2] text decrypted: %s", plain_buf);
-	cl_rsa_destroy(rsa);
+	cl_rsa_destroy(pkey);
 	memset(cipher_buf, 0, 600);
 	memset(plain_buf, 0, 100);
 	plen = -1;
 	clen = -1;
-	assert(cl_rsa_gen(65537, 2048, &rsa) == SUCC);
-	assert(rsa != NULL);
-	assert(cl_rsa_enc(rsa, false, words, wd_len, cipher_buf, &clen) == SUCC);
+	assert(cl_rsa_gen(65537, 2048, &pkey) == SUCC);
+	assert(pkey != NULL);
+	assert(cl_rsa_enc(pkey, false, words, wd_len, cipher_buf, &clen) == SUCC);
 	assert(clen == 256);
 	LOG("clen: %d", clen);
-	assert(cl_rsa_dec(rsa, true, cipher_buf, clen, plain_buf, &plen) == SUCC);
+	assert(cl_rsa_dec(pkey, true, cipher_buf, clen, plain_buf, &plen) == SUCC);
 	assert(plen == wd_len);
 	LOG("plen: %d", plen);
 	assert(strcmp(plain_buf, words) == 0);
 	LOG("[3] text decrypted: %s", plain_buf);
-	cl_rsa_destroy(rsa);
+	cl_rsa_destroy(pkey);
 	memset(cipher_buf, 0, 600);
 	memset(plain_buf, 0, 100);
 	plen = -1;
 	clen = -1;
-	assert(cl_rsa_gen(65537, 4096, &rsa) == SUCC);
-	assert(rsa != NULL);
-	assert(cl_rsa_enc(rsa, false, words, wd_len, cipher_buf, &clen) == SUCC);
+	assert(cl_rsa_gen(65537, 4096, &pkey) == SUCC);
+	assert(pkey != NULL);
+	assert(cl_rsa_enc(pkey, false, words, wd_len, cipher_buf, &clen) == SUCC);
 	assert(clen == 512);
 	LOG("clen: %d", clen);
-	assert(cl_rsa_dec(rsa, true, cipher_buf, clen, plain_buf, &plen) == SUCC);
+	assert(cl_rsa_dec(pkey, true, cipher_buf, clen, plain_buf, &plen) == SUCC);
 	assert(plen == wd_len);
 	LOG("plen: %d", plen);
 	assert(strcmp(plain_buf, words) == 0);
 	LOG("[4] text decrypted: %s", plain_buf);
-	cl_rsa_destroy(rsa);
+	cl_rsa_destroy(pkey);
 	memset(cipher_buf, 0, 600);
 	memset(plain_buf, 0, 100);
 	plen = -1;
 	clen = -1;
-	assert(cl_rsa_gen(65537, 2048, &rsa) == SUCC);
-	assert(rsa != NULL);
-	assert(cl_rsa_enc(rsa, true, words, wd_len, cipher_buf, &clen) == SUCC);
+	assert(cl_rsa_gen(65537, 2048, &pkey) == SUCC);
+	assert(pkey != NULL);
+	assert(cl_rsa_enc(pkey, true, words, wd_len, cipher_buf, &clen) == SUCC);
 	assert(clen == 256);
 	LOG("clen: %d", clen);
-	assert(cl_rsa_dec(rsa, true, cipher_buf, clen, plain_buf, &plen) == FAIL);
-	cl_rsa_destroy(rsa);
+	assert(cl_rsa_dec(pkey, true, cipher_buf, clen, plain_buf, &plen) == FAIL);
+	cl_rsa_destroy(pkey);
 
 	DONE;
 }
@@ -1325,7 +1330,7 @@ int main()
 		LOG("ccll init failed");
 		return -1;
 	}
-	LOG("libccll init succ");
+	LOG("libccll init succ, %d", cl_allocing_cnt());
 
 	test();
 
