@@ -4,9 +4,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#if __STDC_VERSION__ < 202311L
 typedef char bool;
 #define true 1
 #define false 0
+#endif
 
 typedef enum {
 	FAIL = -1,

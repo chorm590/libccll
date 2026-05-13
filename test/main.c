@@ -1303,6 +1303,8 @@ static void test_log() {
 	CLOGE("Log e");
 	CLOGD("Log d");
 	TRACE();
+
+    DONE;
 }
 
 

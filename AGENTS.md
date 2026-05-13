@@ -6,14 +6,6 @@ C shared library (`libcll.so`) providing common Linux utilities: ini config pars
 
 The developing env may be ubuntu server 20.04 or 24.04, but the running env is ubuntu server 24.04.
 
-## Build
-
-Never build it
-
-## Test
-
-Never test it
-
 ## Header naming convention
 
 Each module has two header directories under `<module>/inc/`:
