@@ -3,6 +3,12 @@
 
 #include <openssl/evp.h>
 
+#define CL_RSA_PKCS1  1
+#define CL_RSA_PKCS8  2
+#ifndef CL_RSA_PEM_FORMAT
+#define CL_RSA_PEM_FORMAT CL_RSA_PKCS1
+#endif
+
 /*
  * Generate a RSA key-pair
  *

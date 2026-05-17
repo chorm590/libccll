@@ -2,6 +2,7 @@
 #include <openssl/pem.h>
 #include <openssl/err.h>
 #include <openssl/bn.h>
+#include <openssl/rsa.h>
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 #include <openssl/param_build.h>
 #include <openssl/core_names.h>
@@ -16,6 +17,53 @@
 #include "rsa.h"
 
 TAG = TAG_PREFIX "rsa";
+
+#if CL_RSA_PEM_FORMAT == CL_RSA_PKCS1
+static RSA *cl_rsa_extract(EVP_PKEY *pkey)
+{
+	if(pkey == NULL) return NULL;
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	BIGNUM *n = NULL, *e = NULL, *d = NULL;
+	BIGNUM *p = NULL, *q = NULL;
+	BIGNUM *dp = NULL, *dq = NULL, *qinv = NULL;
+
+	if(!EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_N, &n) ||
+	   !EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_E, &e))
+	{
+		CLOGE("extract RSA pub params failed");
+		BN_free(n);
+		BN_free(e);
+		return NULL;
+	}
+
+	RSA *rsa = RSA_new();
+	if(rsa == NULL)
+	{
+		BN_free(n);
+		BN_free(e);
+		return NULL;
+	}
+
+	EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_D, &d);
+	EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_FACTOR1, &p);
+	EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_FACTOR2, &q);
+	EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_EXPONENT1, &dp);
+	EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_EXPONENT2, &dq);
+	EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_COEFFICIENT1, &qinv);
+
+	RSA_set0_key(rsa, n, e, d);
+	if(p && q)
+		RSA_set0_factors(rsa, p, q);
+	if(dp && dq && qinv)
+		RSA_set0_crt_params(rsa, dp, dq, qinv);
+
+	return rsa;
+#else
+	return EVP_PKEY_get1_RSA(pkey);
+#endif
+}
+#endif
 
 Ret cl_rsa_gen(const int exponent, const int bits, EVP_PKEY **pkey)
 {
@@ -184,6 +232,25 @@ Ret cl_rsa_to_file(EVP_PKEY *pkey, const char *pub_key_fn, const char *prv_key_f
 			return FAIL;
 		}
 
+#if CL_RSA_PEM_FORMAT == CL_RSA_PKCS1
+		RSA *rsa_pbk = cl_rsa_extract(pkey);
+		if(rsa_pbk == NULL)
+		{
+			CLOGE("extract RSA for pub-key failed");
+			BIO_free_all(bio_pbk);
+			remove(pub_key_fn);
+			return FAIL;
+		}
+		if(PEM_write_bio_RSAPublicKey(bio_pbk, rsa_pbk) != 1)
+		{
+			CLOGE("write pub-key to file failed, err: %d", errno);
+			RSA_free(rsa_pbk);
+			BIO_free_all(bio_pbk);
+			remove(pub_key_fn);
+			return FAIL;
+		}
+		RSA_free(rsa_pbk);
+#else
 		if(PEM_write_bio_PUBKEY(bio_pbk, pkey) != 1)
 		{
 			CLOGE("write pub-key to file failed, err: %d", errno);
@@ -191,6 +258,7 @@ Ret cl_rsa_to_file(EVP_PKEY *pkey, const char *pub_key_fn, const char *prv_key_f
 			remove(pub_key_fn);
 			return FAIL;
 		}
+#endif
 		BIO_free_all(bio_pbk);
 	}
 
@@ -204,6 +272,27 @@ Ret cl_rsa_to_file(EVP_PKEY *pkey, const char *pub_key_fn, const char *prv_key_f
 			return FAIL;
 		}
 
+#if CL_RSA_PEM_FORMAT == CL_RSA_PKCS1
+		RSA *rsa_pvk = cl_rsa_extract(pkey);
+		if(rsa_pvk == NULL)
+		{
+			CLOGE("extract RSA for prv-key failed");
+			BIO_free_all(bio_pvk);
+			remove(prv_key_fn);
+			if(pub_key_fn) remove(pub_key_fn);
+			return FAIL;
+		}
+		if(PEM_write_bio_RSAPrivateKey(bio_pvk, rsa_pvk, NULL, NULL, 0, NULL, NULL) != 1)
+		{
+			CLOGE("write prv-key to file failed, err: %d", errno);
+			RSA_free(rsa_pvk);
+			BIO_free_all(bio_pvk);
+			remove(prv_key_fn);
+			if(pub_key_fn) remove(pub_key_fn);
+			return FAIL;
+		}
+		RSA_free(rsa_pvk);
+#else
 		if(PEM_write_bio_PrivateKey(bio_pvk, pkey, NULL, NULL, 0, NULL, NULL) != 1)
 		{
 			CLOGE("write prv-key to file failed, err: %d", errno);
@@ -212,6 +301,7 @@ Ret cl_rsa_to_file(EVP_PKEY *pkey, const char *pub_key_fn, const char *prv_key_f
 			if(pub_key_fn) remove(pub_key_fn);
 			return FAIL;
 		}
+#endif
 		BIO_free_all(bio_pvk);
 	}
 
@@ -234,12 +324,30 @@ Ret cl_rsa_to_bytes(EVP_PKEY *pkey, uint8_t *pub_key_buf, int *pbk_len, uint8_t 
 			return FAIL;
 		}
 
+#if CL_RSA_PEM_FORMAT == CL_RSA_PKCS1
+		RSA *rsa_pbk = cl_rsa_extract(pkey);
+		if(rsa_pbk == NULL)
+		{
+			CLOGE("extract RSA for pub-key failed");
+			BIO_free(bio_pbk);
+			return FAIL;
+		}
+		if(PEM_write_bio_RSAPublicKey(bio_pbk, rsa_pbk) != 1)
+		{
+			CLOGE("convert pub-key to byte stream failed, err: %d", errno);
+			RSA_free(rsa_pbk);
+			BIO_free(bio_pbk);
+			return FAIL;
+		}
+		RSA_free(rsa_pbk);
+#else
 		if(PEM_write_bio_PUBKEY(bio_pbk, pkey) != 1)
 		{
 			CLOGE("convert pub-key to byte stream failed, err: %d", errno);
 			BIO_free(bio_pbk);
 			return FAIL;
 		}
+#endif
 		const int _pbk_len = BIO_ctrl_pending(bio_pbk);
 		BIO_read(bio_pbk, pub_key_buf, _pbk_len);
 		*pbk_len = _pbk_len;
@@ -257,12 +365,30 @@ Ret cl_rsa_to_bytes(EVP_PKEY *pkey, uint8_t *pub_key_buf, int *pbk_len, uint8_t 
 			return FAIL;
 		}
 
+#if CL_RSA_PEM_FORMAT == CL_RSA_PKCS1
+		RSA *rsa_pvk = cl_rsa_extract(pkey);
+		if(rsa_pvk == NULL)
+		{
+			CLOGE("extract RSA for prv-key failed");
+			BIO_free(bio_pvk);
+			return FAIL;
+		}
+		if(PEM_write_bio_RSAPrivateKey(bio_pvk, rsa_pvk, NULL, NULL, 0, NULL, NULL) != 1)
+		{
+			CLOGE("convert prv-key to byte stream failed, err: %d", errno);
+			RSA_free(rsa_pvk);
+			BIO_free(bio_pvk);
+			return FAIL;
+		}
+		RSA_free(rsa_pvk);
+#else
 		if(PEM_write_bio_PrivateKey(bio_pvk, pkey, NULL, NULL, 0, NULL, NULL) != 1)
 		{
 			CLOGE("convert prv-key to byte stream failed, err: %d", errno);
 			BIO_free(bio_pvk);
 			return FAIL;
 		}
+#endif
 		const size_t _pvk_len = BIO_ctrl_pending(bio_pvk);
 		BIO_read(bio_pvk, prv_key_buf, _pvk_len);
 		*pvk_len = _pvk_len;
